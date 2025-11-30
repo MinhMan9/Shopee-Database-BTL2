@@ -1,0 +1,12 @@
+# SQL Server
+*.mdf
+*.ldf
+*.bak
+
+# System & IDE
+.DS_Store
+.vscode/
+.idea/
+node_modules/
+bin/
+obj/
