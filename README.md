@@ -10,12 +10,9 @@ Shopee-Database-BTL2/
 │   └── Mapping_Diagram.drawio.png   # Hình ảnh Mapping mới nhất
 │
 ├── 📁 02-SQL-Source        # Toàn bộ code SQL cho Phần 1 & 2
-│   ├── Schema/          # Phần 1.1: Tạo bảng và ràng buộc
-│   │   └── create_database_shopee.sql
-│   │
-│   ├── Data/            # Phần 1.2: Dữ liệu mẫu
-│   │   ├── insert_master_data.sql  # Dữ liệu tĩnh (Category, Membership, Provider...)
-│   │   └── insert_transaction.sql  # Dữ liệu động (User, Order, Product...)
+│   ├── Schema & Data/          # Phần 1.1 & 1.2: Tạo bảng, ràng buộc và dữ liệu mẫu
+│   │   ├── create_database.sql  # Tạo database và dữ liệu bảng
+│   │   └── delete_database.sql  # Xoá database
 │   │
 │   ├── Procedures/      # Phần 2.1 & 2.3: Thủ tục lưu trữ
 │   │   ├── proc_CRUD.sql           # Thủ tục Thêm/Xóa/Sửa (Câu 2.1)
@@ -33,5 +30,6 @@ Shopee-Database-BTL2/
 │   └── app_config.txt      # Hướng dẫn kết nối CSDL (ConnectionString)
 │
 └── 📁 04-Test-Cases        # Minh họa việc gọi hàm/thủ tục khi báo cáo 
+    ├── test_data.sql       # Các câu lệnh để xem dữ liệu bảng
     ├── test_triggers.sql   # Các câu lệnh INSERT/UPDATE để kích hoạt Trigger
     └── test_procedures.sql # Các câu lệnh EXEC để chạy thử Procedure
