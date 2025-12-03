@@ -47,7 +47,7 @@
             </div>
 
             <div style="margin-top: 15px; padding: 15px; border: 1px solid #4a90e2; border-radius: 5px; background-color: #eaf3ff;">
-                <h4>🏆 Kiểm tra Thăng hạng (Function)</h4>
+                <h4>🏆 Kiểm tra Thăng hạng</h4>
                 {% if tier_info %}
                 {% if tier_info.SpendingNeeded > 0 %}
                     <p>Cần chi tiêu thêm <strong>{{ tier_info.SpendingNeeded | format_currency }}</strong> để hạng thành viên đạt cấp <strong>{{ tier_info.NextTierName }}</strong></p>
@@ -108,7 +108,7 @@
                 </tbody>
             </table>
             
-            <h4>Voucher có thể áp dụng (Sử dụng Function)</h4>
+            <h4>Voucher có thể áp dụng</h4>
             <div style="padding: 15px; border: 1px solid #c3e6cb; background-color: #f0fff0;">
                 {% set applicable_vouchers = vouchers_with_status | selectattr('is_valid_for_cart') | list %}
                 {% if applicable_vouchers %}
@@ -167,7 +167,6 @@
 
         <div id="products" class="tab-pane">
             <h3>🛒 Tìm kiếm & Thống kê Sản phẩm Chi tiết</h3>
-            <p>Sử dụng Stored Procedure `sp_ThongKeSanPhamChiTiet`. Để hiển thị **Tất cả sản phẩm**, bạn để trống tất cả các trường và nhấn "Lọc".</p>
             
             <form method="GET" action="{{ url_for('customer_dashboard') }}" style="padding: 20px; border: 1px solid #ffefe6; margin-bottom: 20px; background-color: #fff8f5;">
                 

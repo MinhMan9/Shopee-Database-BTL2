@@ -23,10 +23,17 @@
             margin-bottom: 10px; 
         }
         .review-rating { color: gold; font-size: 1.2em; }
+        .rating-box { 
+            border: 1px solid #f0f0f0; 
+            padding: 10px; 
+            background: #fafafa; 
+            margin-bottom: 15px; 
+            border-radius: 5px;
+        }
     </style>
 
     <a href="{{ url_for('customer_dashboard') }}?tab=products">
-        <button style="background-color: #6c757d; margin-bottom: 20px;">
+        <button style="background-color: #4ca4f1; margin-bottom: 20px;">
             ← Quay lại Khám phá Sản phẩm
         </button>
     </a>
@@ -41,6 +48,15 @@
                 
                 <h3 class="price">{{ product.price | format_currency }}</h3>
                 
+                <div class="rating-box">
+                    <p><strong>Rating Trung Bình:</strong> 
+                        <span style="color: #ff6600; font-weight: bold; font-size: 1.1em;">
+                            {{ "%.1f" | format(calculated_rating_avg) }} ⭐
+                        </span>
+                    </p>
+                    <p><strong>Tổng Số Đánh Giá:</strong> {{ total_reviews }}</p>
+                </div>
+                
                 <p><strong>Tình trạng:</strong> {{ product.status }}</p>
                 <p><strong>Tồn kho:</strong> {{ product.stock_quantity }}</p>
                 <p><strong>Đã bán:</strong> {{ product.total_sales }}</p>
@@ -50,15 +66,29 @@
 
             <div style="flex: 3;">
                 <h4>Mô tả Sản phẩm</h4>
-                <div style="border: 1px solid #f0f0f0; padding: 15px; background: #fafafa; border-radius: 5px;">
+                <div style="border: 1px solid #f0f0f0; padding: 15px; background: #fafafa; border-radius: 5px; margin-bottom: 20px;">
                     <p>{{ product.prod_description | default('Không có mô tả chi tiết.') }}</p>
                     <p><strong>Thông số:</strong> {{ product.product_specification | default('N/A') }}</p>
                 </div>
+
+                <h4>Chi tiết Sản phẩm</h4>
+                {% if specs or attributes %}
+                    <ul>
+                        {% for spec in specs %}
+                            <li>Kích cỡ/Dung lượng: {{ spec.size | default('N/A') }}, Màu sắc: {{ spec.color | default('N/A') }}</li>
+                        {% endfor %}
+                        {% for attr in attributes %}
+                            <li>Attribute: {{ attr.attribute_size }} ({% if attr.is_primary %}Chính{% else %}Phụ{% endif %})</li>
+                        {% endfor %}
+                    </ul>
+                {% else %}
+                    <p>Không có thông tin chi tiết (Specification/Attribute).</p>
+                {% endif %}
             </div>
         </div>
     </div>
 
-    <h3>⭐ Đánh giá Khách hàng ({{ reviews | length }} reviews)</h3>
+    <h3>⭐ Đánh giá Khách hàng</h3>
     <div class="detail-card">
         {% if reviews %}
             {% for review in reviews %}

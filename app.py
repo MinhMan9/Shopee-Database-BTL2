@@ -260,40 +260,75 @@ def seller_reports():
                            shop_id=SHOP_ID,
                            is_customer_user=session.get('is_customer', False))
 
-# --- Route Chi tiết Sản phẩm ---
 @app.route('/product/<int:prod_id>')
 def product_detail(prod_id):
     if 'user_id' not in session: 
         flash('Vui lòng đăng nhập để xem chi tiết sản phẩm.', 'error')
         return redirect(url_for('login'))
 
+    # 1. Truy vấn thông tin chi tiết cơ bản (PRODUCT_VARIANT)
     sql_detail = """
     SELECT 
         PV.*, I.item_name, C.category_name, U_Shop.username AS ShopName, U_Shop.phone_number AS ShopPhone
-    FROM PRODUCT_VARIANT PV INNER JOIN ITEM I ON PV.item_id = I.item_id
+    FROM PRODUCT_VARIANT PV
+    INNER JOIN ITEM I ON PV.item_id = I.item_id
     INNER JOIN CATEGORY C ON I.category_id = C.category_id
     INNER JOIN [USER] U_Shop ON I.shop_id = U_Shop.user_id
     WHERE PV.prod_id = ?
     """
     detail_data, _ = execute_select(sql_detail, (prod_id,))
     
+    if not detail_data:
+        flash(f'Sản phẩm ID {prod_id} không tồn tại.', 'error')
+        return redirect(url_for('customer_dashboard')) 
+
+    product = detail_data[0]
+    
+    # ----------------------------------------------------------------------
+    # 2. TRUY VẤN THÔNG TIN BỔ SUNG YÊU CẦU:
+    # ----------------------------------------------------------------------
+    
+    # a) Truy vấn Product Specification (Size, Color)
+    sql_spec = "SELECT size, color FROM PRODUCT_SPECIFICATION WHERE prod_id = ?"
+    specs_data, _ = execute_select(sql_spec, (prod_id,))
+    
+    # b) Truy vấn Product Attribute (Ví dụ: 256GB, Size L)
+    sql_attr = "SELECT attribute_size, is_primary FROM PRODUCT_ATTRIBUTE WHERE prod_id = ?"
+    attrs_data, _ = execute_select(sql_attr, (prod_id,))
+
+    # c) Tính Total Reviews (Tổng số đánh giá) và Rating Avg (tính lại từ bảng REVIEW)
+    # Lấy Total Reviews và Rating Avg thực tế từ bảng REVIEW
+    sql_review_stats = """
+    SELECT 
+        COUNT(review_id) AS total_reviews, 
+        AVG(rating * 1.0) AS calculated_rating_avg 
+    FROM REVIEW 
+    WHERE product_id = ?
+    """
+    review_stats, _ = execute_select(sql_review_stats, (prod_id,))
+    
+    total_reviews = review_stats[0]['total_reviews'] if review_stats and review_stats[0]['total_reviews'] is not None else 0
+    calculated_rating_avg = review_stats[0]['calculated_rating_avg'] if review_stats and review_stats[0]['calculated_rating_avg'] is not None else 0.0
+
+    # d) Truy vấn Chi tiết Đánh giá (5 đánh giá gần nhất)
     sql_reviews = """
     SELECT TOP 5 
         R.rating, R.comment, R.created_at, U_Cust.username AS CustomerName
-    FROM REVIEW R INNER JOIN CUSTOMER C ON R.customer_id = C.customer_id
+    FROM REVIEW R
+    INNER JOIN CUSTOMER C ON R.customer_id = C.customer_id
     INNER JOIN [USER] U_Cust ON C.customer_id = U_Cust.user_id
     WHERE R.product_id = ?
     ORDER BY R.created_at DESC
     """
     reviews, _ = execute_select(sql_reviews, (prod_id,))
 
-    if not detail_data:
-        flash(f'Sản phẩm ID {prod_id} không tồn tại.', 'error')
-        return redirect(url_for('customer_dashboard')) 
-
     return render_template('product_detail.html',
-                           product=detail_data[0],
-                           reviews=reviews)
+                           product=product,
+                           reviews=reviews,
+                           specs=specs_data,
+                           attributes=attrs_data,
+                           total_reviews=total_reviews,
+                           calculated_rating_avg=calculated_rating_avg) # Truyền dữ liệu mới
 
 # --- Các hàm CRUD (add_product, delete_product) cần được chèn vào đây ---
 @app.route('/seller/add_product', methods=['GET', 'POST'])
