@@ -1,0 +1,80 @@
+{% extends "base.html" %}
+
+{% block title %}Chi Tiết Sản Phẩm: {{ product.prod_name }}{% endblock %}
+
+{% block content %}
+    <style>
+        .detail-card { 
+            border: 1px solid #ddd; 
+            padding: 25px; 
+            border-radius: 8px; 
+            background: #fff;
+            margin-bottom: 20px;
+        }
+        .price { 
+            font-size: 2em; 
+            color: #ee4d2d; 
+            font-weight: bold; 
+            margin-top: 10px; 
+        }
+        .review-item { 
+            border-bottom: 1px dashed #eee; 
+            padding-bottom: 10px; 
+            margin-bottom: 10px; 
+        }
+        .review-rating { color: gold; font-size: 1.2em; }
+    </style>
+
+    <a href="{{ url_for('customer_dashboard') }}?tab=products">
+        <button style="background-color: #6c757d; margin-bottom: 20px;">
+            ← Quay lại Khám phá Sản phẩm
+        </button>
+    </a>
+
+    <h2>🛒 {{ product.prod_name }} (ID: {{ product.prod_id }})</h2>
+
+    <div class="detail-card">
+        <div style="display: flex; gap: 30px;">
+            <div style="flex: 2;">
+                <p><strong>Danh mục:</strong> {{ product.category_name }}</p>
+                <p><strong>Shop:</strong> {{ product.ShopName }} (ĐT: {{ product.ShopPhone | default('N/A') }})</p>
+                
+                <h3 class="price">{{ product.price | format_currency }}</h3>
+                
+                <p><strong>Tình trạng:</strong> {{ product.status }}</p>
+                <p><strong>Tồn kho:</strong> {{ product.stock_quantity }}</p>
+                <p><strong>Đã bán:</strong> {{ product.total_sales }}</p>
+                
+                <button style="background-color: #007bff; padding: 12px 25px; margin-top: 15px;">Thêm vào Giỏ hàng</button>
+            </div>
+
+            <div style="flex: 3;">
+                <h4>Mô tả Sản phẩm</h4>
+                <div style="border: 1px solid #f0f0f0; padding: 15px; background: #fafafa; border-radius: 5px;">
+                    <p>{{ product.prod_description | default('Không có mô tả chi tiết.') }}</p>
+                    <p><strong>Thông số:</strong> {{ product.product_specification | default('N/A') }}</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <h3>⭐ Đánh giá Khách hàng ({{ reviews | length }} reviews)</h3>
+    <div class="detail-card">
+        {% if reviews %}
+            {% for review in reviews %}
+                <div class="review-item">
+                    <p><strong>{{ review.CustomerName }}</strong></p>
+                    <p class="review-rating">
+                        {% set stars = review.rating %}
+                        {% for i in range(stars) %}⭐{% endfor %}
+                    </p>
+                    <p>{{ review.comment }}</p>
+                    <small style="color: #777;">Ngày: {{ review.created_at.strftime('%Y-%m-%d') }}</small>
+                </div>
+            {% endfor %}
+        {% else %}
+            <p>Sản phẩm này chưa có đánh giá nào.</p>
+        {% endif %}
+    </div>
+
+{% endblock %}

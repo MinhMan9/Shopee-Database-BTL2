@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+
+{% block title %}Quản Lý Sản Phẩm - Kênh Bán Hàng{% endblock %}
+
+{% block content %}
+    {% if is_customer_user %}
+        <div style="float: right; padding: 10px; border: 1px solid #ddd; border-radius: 5px; background: #e3f2fd;">
+            Bạn là **CUSTOMER**. <a href="{{ url_for('customer_dashboard') }}">Chuyển sang Trang Mua Hàng 🛍️</a>
+        </div>
+    {% endif %}
+
+    <h2>📦 Quản Lý Sản Phẩm (PRODUCT_VARIANT)</h2>
+    {% endblock %}

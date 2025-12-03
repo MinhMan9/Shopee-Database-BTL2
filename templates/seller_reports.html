@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+
+{% block title %}Báo Cáo Thống Kê Shop{% endblock %}
+
+{% block content %}
+    <h2>📊 Báo Cáo & Thống Kê (Shop ID: {{ shop_id }})</h2>
+    
+    {% if is_customer_user %}
+        <div style="float: right; padding: 10px; border: 1px solid #ddd; border-radius: 5px; background: #e3f2fd;">
+            <a href="{{ url_for('customer_dashboard') }}">Chuyển sang Trang Mua Hàng 🛍️</a>
+        </div>
+    {% endif %}
+
+    <div style="clear: both;"></div>
+
+    <h3 style="margin-top: 30px;">1. Tổng quan Doanh số và Rating</h3>
+    {% if revenue_data %}
+        {% set r = revenue_data[0] %}
+        <div style="padding: 20px; border: 1px solid #ccc; background-color: #f9f9f9;">
+            <p><strong>Tên Shop:</strong> {{ r.ShopName }}</p>
+            <p><strong>Tổng Đơn Hàng:</strong> {{ r.TotalOrders }}</p>
+            <p><strong>Tổng Doanh Thu:</strong> <span style="font-weight: bold; color: green;">{{ r.TotalRevenue | format_currency }}</span></p>
+            <p><strong>Rating Trung Bình (Lấy từ bảng SHOP):</strong> {{ r.AvgShopRating }}</p>
+        </div>
+    {% else %}
+        <p>Không có dữ liệu tổng quan cho Shop này.</p>
+    {% endif %}
+
+    <h3 style="margin-top: 30px;">2. Thống kê Chi tiết Sản phẩm</h3>
+    {% if product_stats %}
+        <table class="data-table" style="width: 100%;">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Tên Sản Phẩm</th>
+                    <th>Danh Mục</th>
+                    <th>Giá</th>
+                    <th>Tồn Kho</th>
+                    <th>Tổng Bán</th>
+                    <th>Tổng Doanh Thu</th>
+                    <th>Avg Rating</th>
+                    <th>Total Reviews</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for p in product_stats %}
+                    <tr>
+                        <td>{{ p.prod_id }}</td>
+                        <td>{{ p.prod_name }}</td>
+                        <td>{{ p.category_name }}</td>
+                        <td>{{ p.CurrentPrice | format_currency }}</td>
+                        <td>{{ p.CurrentStock }}</td>
+                        <td>{{ p.TotalUnitsSold | default(0) }}</td>
+                        <td>{{ p.TotalRevenueGenerated | format_currency | default('0 VNĐ') }}</td>
+                        <td>{{ p.AvgRating | default('N/A') }}</td>
+                        <td>{{ p.TotalReviews | default(0) }}</td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    {% else %}
+        <p>Không tìm thấy dữ liệu chi tiết sản phẩm nào đã bán.</p>
+    {% endif %}
+    
+    <a href="{{ url_for('seller_dashboard') }}"><button style="background-color: #007bff; margin-top: 30px;">Quay lại Dashboard</button></a>
+{% endblock %}
