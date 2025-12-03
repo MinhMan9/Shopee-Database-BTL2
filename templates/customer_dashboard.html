@@ -4,6 +4,7 @@
 
 {% block content %}
     <style>
+        /* CSS cho hệ thống Tab */
         .tab-menu { list-style: none; padding: 0; margin: 0 0 20px 0; border-bottom: 2px solid #ddd; display: flex; }
         .tab-menu li { padding: 10px 20px; cursor: pointer; border: 1px solid transparent; border-bottom: none; margin-right: 5px; font-weight: 500; color: #777; }
         .tab-menu li.active { border-color: #ddd #ddd #fff; color: #ee4d2d; font-weight: bold; }
@@ -47,17 +48,16 @@
             </div>
 
             <div style="margin-top: 15px; padding: 15px; border: 1px solid #4a90e2; border-radius: 5px; background-color: #eaf3ff;">
-                <h4>🏆 Kiểm tra Thăng hạng</h4>
+                <h4>🏆 Kiểm tra Thăng hạng (Function)</h4>
                 {% if tier_info %}
                 {% if tier_info.SpendingNeeded > 0 %}
-                    <p>Cần chi tiêu thêm <strong>{{ tier_info.SpendingNeeded | format_currency }}</strong> để hạng thành viên đạt cấp <strong>{{ tier_info.NextTierName }}</strong></p>
+                    <p>Cần chi tiêu thêm **{{ tier_info.SpendingNeeded | format_currency }}** để đạt cấp **{{ tier_info.NextTierName }}**.</p>
                 {% else %}
                     <p>Chúc mừng! Bạn đang ở cấp cao nhất ({{ tier_info.CurrentTierName }}) hoặc đã đạt yêu cầu thăng hạng.</p>
                 {% endif %}
                 {% else %}
                     <p>Không thể kiểm tra thông tin thăng hạng.</p>
                 {% endif %}
-                
             </div>
 
             {% else %}
@@ -91,7 +91,7 @@
 
         <div id="shopping-cart" class="tab-pane">
             <h3>Các Sản phẩm hiện có trong Giỏ hàng</h3>
-            <p style="font-size: 1.1em; font-weight: bold; color: #ee4d2d;">TỔNG GIÁ TRỊ GIỎ HÀNG (Function): {{ cart_total | format_currency }}</p>
+            <p style="font-size: 1.1em; font-weight: bold; color: #ee4d2d;">TỔNG GIÁ TRỊ GIỎ HÀNG {{ cart_total | format_currency }}</p>
             
             {% if cart_items %}
             <table class="data-table" style="width: 100%; margin-bottom: 30px;">
@@ -112,7 +112,7 @@
             <div style="padding: 15px; border: 1px solid #c3e6cb; background-color: #f0fff0;">
                 {% set applicable_vouchers = vouchers_with_status | selectattr('is_valid_for_cart') | list %}
                 {% if applicable_vouchers %}
-                    <p style="color: green;">Tìm thấy **{{ applicable_vouchers | length }}** voucher có thể sử dụng:</p>
+                    <p style="color: green;">Tìm thấy <strong>{{ applicable_vouchers | length }}</strong> voucher có thể sử dụng:</p>
                     <ul>
                         {% for voucher in applicable_vouchers %}
                             <li style="font-weight: bold;">[ID: {{ voucher.voucher_id }}] {{ voucher.description }}</li>
@@ -172,13 +172,13 @@
                 
                 <input type="hidden" name="tab" value="products">
 
-                <label for="ten_dm">Tên Danh mục (LIKE):</label>
+                <label for="ten_dm">Tên Danh mục:</label>
                 <input type="text" id="ten_dm" name="ten_dm" value="{{ request.args.get('ten_dm') or '' }}" style="margin-right: 15px;">
                 
-                <label for="min_sales">Doanh số Min (Đã bán):</label>
+                <label for="min_sales">Doanh số Min:</label>
                 <input type="number" id="min_sales" name="min_sales" value="{{ request.args.get('min_sales') or '' }}" style="margin-right: 15px;">
                 
-                <label for="min_rating">Rating Min (Ví dụ: 4.5):</label>
+                <label for="min_rating">Rating Min:</label>
                 <input type="number" id="min_rating" name="min_rating" step="0.1" value="{{ request.args.get('min_rating') or '' }}" style="margin-right: 15px;">
                 
                 <button type="submit" style="background-color: #ee4d2d;">Tìm kiếm/Lọc</button>
@@ -189,7 +189,15 @@
                 <table class="data-table" style="width: 100%;">
                     <thead>
                         <tr>
-                            <th>ID</th><th>Tên Sản Phẩm</th><th>Danh Mục</th><th>Shop</th><th>Giá HT</th><th>Tổng Bán</th><th>Tổng Doanh Thu</th><th>Rating TB</th><th>Total Reviews</th>
+                            <th>ID</th>
+                            <th>Tên Sản Phẩm</th>
+                            <th>Danh Mục</th>
+                            <th>Shop</th>
+                            <th>{{ sort_header_link('CurrentPrice', 'Giá HT', current_sort_by, current_order) }}</th>
+                            <th>{{ sort_header_link('TotalUnitsSold', 'Tổng Bán', current_sort_by, current_order) }}</th>
+                            <th>Tổng Doanh Thu</th>
+                            <th>{{ sort_header_link('AvgRating', 'Rating TB', current_sort_by, current_order) }}</th>
+                            <th>Total Reviews</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -256,3 +264,26 @@
         });
     </script>
 {% endblock %}
+
+{% macro sort_header_link(column_name, display_name, current_sort, current_order) %}
+    {% set new_order = 'asc' if current_sort == column_name and current_order == 'desc' else 'desc' %}
+    
+    {% set query_params = {
+        'tab': 'products',
+        'ten_dm': request.args.get('ten_dm') or '',
+        'min_rating': request.args.get('min_rating') or '',
+        'min_sales': request.args.get('min_sales') or '',
+        'sort_by': column_name,
+        'order': new_order
+    } %}
+    
+    <a href="{{ url_for('customer_dashboard', **query_params) }}" 
+       style="color: black; text-decoration: none;">
+        {{ display_name }} 
+        {% if current_sort == column_name %}
+            {% if current_order == 'asc' %} ▲ {% else %} ▼ {% endif %}
+        {% else %}
+            ⇵
+        {% endif %}
+    </a>
+{% endmacro %}
