@@ -298,7 +298,7 @@ CREATE TABLE [ORDER] (
   [shop_id] int,
   [total_amount] decimal(18,2),
   [ship_method] nvarchar(50),
-  [shipping_id] int
+  [shipping_id] int NULL
 )
 
 -- --- Bảng ORDER ---
@@ -443,13 +443,15 @@ CREATE TABLE [SHIPMENT] (
     [tracking_no] VARCHAR(50),             
     [fee] DECIMAL(18, 2),                        
     [estimated_delivery] DATETIME,
-    [provider_id] INT NOT NULL
+    [provider_id] INT NOT NULL,
+
+    CONSTRAINT UQ_Shipment_Order UNIQUE ([order_id])
 );
 GO
 
 -- --- Bảng SHIPMENT ---
 SET IDENTITY_INSERT SHIPMENT ON;
-INSERT INTO SHIPMENT (shipment_id, order_id, tracking_no, fee, estimated_delivery_day, provider_id) VALUES 
+INSERT INTO SHIPMENT (shipment_id, order_id, tracking_no, fee, estimated_delivery, provider_id) VALUES 
 (1, 1, 'SPX00129388', 15000, '2025-10-21', 1),
 (2, 2, 'GHN88273111', 0, '2025-10-22', 2),
 (3, 3, 'VNP99281122', 15000, '2025-10-23', 3),
@@ -487,7 +489,9 @@ CREATE TABLE [REVIEW] (
   [rating] int,
   [comment] ntext,
   [created_at] datetime,
-  [image_review] varchar(255)
+  [image_review] varchar(255),
+
+  CONSTRAINT UQ_Review_Limit UNIQUE (customer_id, product_id)
 )
 
 -- --- Bảng REVIEW ---
