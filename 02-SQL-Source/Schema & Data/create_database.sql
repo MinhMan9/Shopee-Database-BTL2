@@ -438,15 +438,6 @@ SET IDENTITY_INSERT SHIPMENT_PROVIDER OFF;
 GO
 
 CREATE TABLE [SHIPMENT] (
-  [shipment_id] int PRIMARY KEY IDENTITY(1, 1),
-  [order_id] int,
-  [payment_date] datetime,
-  [amount] decimal(18,2),
-  [method] nvarchar(50),
-  [status] nvarchar(50),
-  [provider_id] int
-)
-CREATE TABLE [SHIPMENT] (
     [shipment_id] INT IDENTITY(1,1) PRIMARY KEY, 
     [order_id] INT NOT NULL,
     [tracking_no] VARCHAR(50),             
@@ -460,10 +451,10 @@ GO
 SET IDENTITY_INSERT SHIPMENT ON;
 INSERT INTO SHIPMENT (shipment_id, order_id, tracking_no, fee, estimated_delivery_day, provider_id) VALUES 
 (1, 1, 'SPX00129388', 15000, '2025-10-21', 1),
-(2, 2, 'GHN88273111', 32000, '2025-10-22', 2),
-(3, 3, 'VNP99281122', 22000, '2025-10-23', 3),
-(4, 4, 'GHN88273999', 45000, '2025-10-22', 2),
-(5, 5, 'JNT11223344', 18000, '2025-10-25', 4);
+(2, 2, 'GHN88273111', 0, '2025-10-22', 2),
+(3, 3, 'VNP99281122', 15000, '2025-10-23', 3),
+(4, 4, 'GHN88273999', 15000, '2025-10-22', 2),
+(5, 5, 'JNT11223344', 20000, '2025-10-25', 4);
 SET IDENTITY_INSERT SHIPMENT OFF;
 GO
 
