@@ -3,27 +3,29 @@ GO
 
 PRINT N'========== TEST USER CONSTRAINTS ==========';
 
+--------------------------------------------------
 -- 1. USER – VALID: tất cả đúng format
+--------------------------------------------------
 INSERT INTO [USER] (username, [password], email, phone_number, gender, day_of_birth)
 VALUES ('chk_user_ok', '123', 'check_ok@example.com', '0911111111', N'Nam', '2000-01-01');
 -- -> Phải INSERT thành công
 
 --------------------------------------------------
--- 1.1 Email format
+-- 1.1 Email format (CK_USER_Email_Format)
 --------------------------------------------------
 
 -- INVALID: Email sai format (không có @)
 INSERT INTO [USER] (username, [password], email, phone_number, gender)
-VALUES ('chk_bad_email1', '123', 'invalid_email.com', '0911111112', N'Nam');
+VALUES ('chk_bad_email1', '123', 'invalidemail.com', '0911111112', N'Nam');
 -- -> EXPECTED ERROR: CK_USER_Email_Format
 
--- INVALID: Email sai format (không có . phía sau)
+-- INVALID: Email sai format (không có . sau @)
 INSERT INTO [USER] (username, [password], email, phone_number, gender)
 VALUES ('chk_bad_email2', '123', 'invalid@local', '0911111113', N'Nam');
 -- -> EXPECTED ERROR: CK_USER_Email_Format
 
 --------------------------------------------------
--- 1.2 Email UNIQUE
+-- 1.2 Email UNIQUE (UQ_USER_Email)
 --------------------------------------------------
 
 -- INVALID: Trùng email với user có sẵn 'a@gmail.com'
@@ -32,16 +34,16 @@ VALUES ('chk_dup_email', '123', 'a@gmail.com', '0911111114', N'Nam');
 -- -> EXPECTED ERROR: UQ_USER_Email
 
 --------------------------------------------------
--- 1.3 Gender IN (Nam, Nữ, Khác)
+-- 1.3 Gender IN (Nam, Nữ, Khác) (CK_USER_Gender)
 --------------------------------------------------
 
 -- INVALID: Gender không thuộc tập cho phép
 INSERT INTO [USER] (username, [password], email, phone_number, gender)
-VALUES ('chk_bad_gender', '123', 'bad_gender@example.com', '0911111115', N'Giới tính');
+VALUES ('chk_bad_gender', '123', 'bad_gender@example.com', '0911111115', N'Giới tính khác');
 -- -> EXPECTED ERROR: CK_USER_Gender
 
 --------------------------------------------------
--- 1.4 Phone format & UNIQUE
+-- 1.4 Phone format & UNIQUE (CK_USER_Phone_Format, UQ_USER_Phone)
 --------------------------------------------------
 
 -- INVALID: Phone có chữ
@@ -54,17 +56,16 @@ INSERT INTO [USER] (username, [password], email, phone_number, gender)
 VALUES ('chk_bad_phone2', '123', 'bad_phone2@example.com', '091234567', N'Nam');
 -- -> EXPECTED ERROR: CK_USER_Phone_Format
 
--- INVALID: Phone trùng với 1 user đã có (ví dụ 0901234567 của user_id = 1)
+-- INVALID: Trùng số với user_id = 1 ('0901234567')
 INSERT INTO [USER] (username, [password], email, phone_number, gender)
 VALUES ('chk_dup_phone', '123', 'dup_phone@example.com', '0901234567', N'Nam');
 -- -> EXPECTED ERROR: UQ_USER_Phone
 
 
-
 PRINT N'========== TEST PRODUCT_VARIANT CONSTRAINTS ==========';
 
 --------------------------------------------------
--- 2. PRODUCT_VARIANT – stock_quantity >= 0
+-- 2. PRODUCT_VARIANT – stock_quantity >= 0, price >= 0
 --------------------------------------------------
 
 -- VALID: stock_quantity = 0
@@ -80,6 +81,13 @@ INSERT INTO PRODUCT_VARIANT (item_id, prod_name, prod_description, price, stock_
 VALUES (1, N'Test stock negative', N'SP test stock âm', 100000, -5,
         N'test', 'test-5.jpg', N'Đang bán', 0, 0);
 -- -> EXPECTED ERROR: CK_PRODUCT_StockQuantity
+
+-- INVALID: price âm
+INSERT INTO PRODUCT_VARIANT (item_id, prod_name, prod_description, price, stock_quantity,
+                             product_specification, illustration_images, [status], total_sales, rating_avg)
+VALUES (1, N'Test price negative', N'SP test price âm', -1000, 10,
+        N'test', 'test-price.jpg', N'Đang bán', 0, 0);
+-- -> EXPECTED ERROR: CK_PRODUCT_Price
 
 
 
@@ -101,7 +109,7 @@ VALUES (N'Voucher bad date', 'amount', N'min_0', '2025-03-01', '2025-02-01', 10)
 
 -- INVALID: quantity_available âm
 INSERT INTO VOUCHER (description, discount_type, [condition], valid_from, valid_to, quantity_available)
-VALUES (N'Voucher negative qty', 'amount', N'min_0', '2025-01-01', '2025-12-31', -1);
+VALUES (N'Voucher bad quantity', 'amount', N'min_0', '2025-01-01', '2025-12-31', -5);
 -- -> EXPECTED ERROR: CK_VOUCHER_Quantity
 
 
@@ -109,27 +117,27 @@ VALUES (N'Voucher negative qty', 'amount', N'min_0', '2025-01-01', '2025-12-31',
 PRINT N'========== TEST MEMBERSHIP_TIER CONSTRAINTS ==========';
 
 --------------------------------------------------
--- 4. MEMBERSHIP_TIER – tên, level, min_spending, min_order, coin, discount_percent
+-- 4. MEMBERSHIP_TIER – Name, Level, MinSpending, MinOrder, Coin, Discount
 --------------------------------------------------
 
 -- VALID
 INSERT INTO MEMBERSHIP_TIER (tier_name, tier_lvl, min_spending, max_spending, [description],
                              min_order, max_order, discount_percent, shopee_coin)
-VALUES (N'Thành Viên', 1, 0, 1000000, N'Test tier OK',
-        0, 10, 0.0, 0);
+VALUES (N'Bạc', 2, 0, 1000000, N'Test tier OK',
+        0, 10, 0.1, 50);
 -- -> Phải INSERT được
 
--- INVALID: tier_name không nằm trong {Thành Viên, Bạc, Vàng, Kim Cương}
+-- INVALID: tier_name không thuộc {Thành Viên, Bạc, Vàng, Kim Cương}
 INSERT INTO MEMBERSHIP_TIER (tier_name, tier_lvl, min_spending, max_spending, [description],
                              min_order, max_order, discount_percent, shopee_coin)
-VALUES (N'Platinum', 2, 0, 1000000, N'Test tier name sai',
+VALUES (N'Đồng', 1, 0, 1000000, N'Test name sai',
         0, 10, 0.05, 0);
 -- -> EXPECTED ERROR: CK_TIER_Name
 
--- INVALID: tier_lvl = 5 (ngoài [1..4])
+-- INVALID: tier_lvl ngoài [1..4]
 INSERT INTO MEMBERSHIP_TIER (tier_name, tier_lvl, min_spending, max_spending, [description],
                              min_order, max_order, discount_percent, shopee_coin)
-VALUES (N'Bạc', 5, 0, 1000000, N'Test tier level sai',
+VALUES (N'Vàng', 5, 0, 1000000, N'Test tier_lvl sai',
         0, 10, 0.05, 0);
 -- -> EXPECTED ERROR: CK_TIER_Level
 
@@ -170,3 +178,4 @@ VALUES (N'Kim Cương', 4, 0, 1000000, N'Test discount âm',
 
 
 PRINT N'========== END OF CHECK TESTS ==========';
+
