@@ -284,11 +284,16 @@ SET IDENTITY_INSERT ILLUSTRATIVE_IMAGE OFF;
 GO
 
 CREATE TABLE [CART] (
-  [cart_id] int PRIMARY KEY IDENTITY(1, 1),
-  [user_id] int,
+  [cart_id]       int PRIMARY KEY IDENTITY(1, 1),
+  [user_id]       int,
   [total_product] int,
-  [total_payment] decimal(18,2)
-)
+  [total_payment] decimal(18,2),
+
+  -- 13. Mỗi Customer chỉ có 1 Cart
+  CONSTRAINT UQ_CART_User UNIQUE ([user_id])
+);
+GO
+
 
 -- --- Bảng CART ---
 SET IDENTITY_INSERT CART ON;
@@ -463,13 +468,17 @@ INSERT INTO CUSTOMER_VOUCHER (customer_id, voucher_id) VALUES 
 GO
 
 CREATE TABLE [PAYMENT] (
-  [payment_id] int PRIMARY KEY IDENTITY(1, 1),
-  [order_id] int,
+  [payment_id]   int PRIMARY KEY IDENTITY(1, 1),
+  [order_id]     int,
   [payment_date] datetime,
-  [amount] decimal(18,2),
-  [method] nvarchar(50),
-  [status] nvarchar(50)
-)
+  [amount]       decimal(18,2),
+  [method]       nvarchar(50),
+  [status]       nvarchar(50),
+
+  -- 14. Mỗi Order chỉ có 1 Payment
+  CONSTRAINT UQ_PAYMENT_Order UNIQUE ([order_id])
+);
+GO
 
 -- --- Bảng PAYMENT ---
 SET IDENTITY_INSERT PAYMENT ON;
