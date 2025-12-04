@@ -1,0 +1,176 @@
+{% extends "base.html" %}
+{% block title %}Kênh Người Bán - Shopee Clone{% endblock %}
+
+{% block content %}
+<style>
+    .dashboard-container { display: flex; gap: 20px; }
+    .sidebar { width: 250px; background: #fff; border-right: 1px solid #eee; padding: 20px; }
+    .main-content { flex: 1; padding: 20px; }
+    
+    .stat-card { background: #fff; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); text-align: center; }
+    .stat-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; margin-bottom: 30px; }
+    .stat-value { font-size: 24px; font-weight: bold; color: #ee4d2d; }
+    .stat-label { color: #666; font-size: 14px; }
+
+    .section-title { font-size: 18px; font-weight: bold; margin-bottom: 15px; border-left: 4px solid #ee4d2d; padding-left: 10px; }
+    
+    .data-table { width: 100%; border-collapse: collapse; background: #fff; }
+    .data-table th, .data-table td { padding: 12px; border: 1px solid #eee; text-align: left; }
+    .data-table th { background: #f8f9fa; font-weight: 600; }
+    
+    .btn-action { padding: 5px 10px; border-radius: 4px; text-decoration: none; font-size: 12px; color: #fff; }
+    .btn-edit { background: #28a745; }
+    .btn-delete { background: #dc3545; }
+</style>
+
+<div class="dashboard-container">
+    <!-- Sidebar Menu -->
+    <div class="sidebar">
+        <h3>🏪 Kênh Người Bán</h3>
+        <div style="margin-bottom: 20px; padding-bottom: 20px; border-bottom: 1px solid #eee;">
+            <p><strong>Shop:</strong> {{ shop_info.username }}</p>
+            <p><strong>ID:</strong> {{ shop_id }}</p>
+        </div>
+        <ul style="list-style: none; padding: 0;">
+            <li style="margin-bottom: 10px;"><a href="#" style="color: #ee4d2d; font-weight: bold;">📊 Tổng quan</a></li>
+            <li style="margin-bottom: 10px;"><a href="#" style="color: #333;">📦 Quản lý Sản phẩm</a></li>
+            <li style="margin-bottom: 10px;"><a href="#" style="color: #333;">📄 Quản lý Đơn hàng</a></li>
+            <li style="margin-bottom: 10px;"><a href="#" style="color: #333;">💰 Tài chính</a></li>
+        </ul>
+    </div>
+
+    <!-- Main Content -->
+    <div class="main-content">
+        
+        <!-- 1. Thống kê Tổng quan (Sử dụng Procedure sp_LayThongKeDashboardShop) -->
+        <div class="section-title">Tổng quan Shop hôm nay</div>
+        <div class="stat-grid">
+            <div class="stat-card">
+                <div class="stat-value">{{ stats.TotalRevenue | format_currency }}</div>
+                <div class="stat-label">Doanh thu trọn đời</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value">{{ stats.TotalOrders }}</div>
+                <div class="stat-label">Tổng đơn hàng</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value">{{ stats.TotalProductsSold }}</div>
+                <div class="stat-label">Sản phẩm đã bán</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value">{{ "%.1f"|format(stats.RealAvgRating) }} ⭐</div>
+                <div class="stat-label">Đánh giá Shop</div>
+            </div>
+        </div>
+
+        <!-- [NEW] Import Sản phẩm từ Excel -->
+        <div class="section-title">Nhập sản phẩm từ Excel</div>
+        <div style="background: #fff; padding: 20px; border-radius: 8px; margin-bottom: 30px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+            <form action="{{ url_for('import_products') }}" method="post" enctype="multipart/form-data" style="display: flex; gap: 10px; align-items: center;">
+                <input type="file" name="file" accept=".xlsx, .xls" required style="padding: 5px;">
+                <button type="submit" style="background: #ee4d2d; color: #fff; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer;">
+                    📤 Tải lên & Nhập dữ liệu
+                </button>
+            </form>
+            <p style="margin-top: 10px; font-size: 13px; color: #666;">
+                * File Excel cần có các cột: <code>CategoryID, ItemName, ProdName, Price, Stock, Description, ImageURL</code>
+            </p>
+        </div>
+
+        <!-- 2. Danh sách Đơn hàng Mới (Sử dụng Procedure sp_LayDanhSachDonHangShop) -->
+        <div class="section-title">Đơn hàng gần đây</div>
+        {% if recent_orders %}
+        <table class="data-table" style="margin-bottom: 30px;">
+            <thead>
+                <tr>
+                    <th>Mã ĐH</th>
+                    <th>Ngày đặt</th>
+                    <th>Khách hàng</th>
+                    <th>Tổng tiền</th>
+                    <th>Trạng thái</th>
+                    <th>Thao tác</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for order in recent_orders %}
+                <tr>
+                    <td>#{{ order.order_id }}</td>
+                    <td>{{ order.OrderDate }}</td> <!-- Lưu ý: Key khớp với Procedure -->
+                    <td>{{ order.CustomerName }}</td>
+                    <td>{{ order.total_amount | format_currency }}</td>
+                    <td>
+                        <span style="padding: 3px 8px; border-radius: 10px; background: #e8f0fe; color: #1967d2; font-size: 12px;">
+                            {{ order.OrderStatus or 'Chờ xử lý' }}
+                        </span>
+                    </td>
+                    <td>
+                        <a href="#" class="btn-action btn-edit">Chi tiết</a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+            <p>Chưa có đơn hàng nào.</p>
+        {% endif %}
+
+        <!-- 3. Danh sách Sản phẩm (Tái sử dụng logic cũ hoặc Procedure mới) -->
+        <div class="section-title">Sản phẩm của Shop</div>
+        <div style="margin-bottom: 15px;">
+            <form method="GET" action="{{ url_for('seller_dashboard') }}">
+                <input type="text" name="keyword" placeholder="Tìm tên sản phẩm..." value="{{ current_keyword }}" style="padding: 8px; width: 300px;">
+                <select name="status_filter" style="padding: 8px;">
+                    <option value="">Tất cả trạng thái</option>
+                    <option value="Còn hàng" {% if current_status == 'Còn hàng' %}selected{% endif %}>Còn hàng</option>
+                    <option value="Hết hàng" {% if current_status == 'Hết hàng' %}selected{% endif %}>Hết hàng</option>
+                </select>
+                <button type="submit" style="padding: 8px 15px; background: #ee4d2d; color: white; border: none; cursor: pointer;">Lọc</button>
+            </form>
+        </div>
+
+        {% if products %}
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Tên Sản phẩm</th>
+                    <th>Giá bán</th>
+                    <th>Kho</th>
+                    <th>Đã bán</th>
+                    <th>Đánh giá</th>
+                    <th>Thao tác</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for p in products %}
+                <tr>
+                    <td>{{ p.prod_id }}</td>
+                    <td>{{ p.prod_name }}</td>
+                    <td>{{ p.price | format_currency }}</td>
+                    <td>
+                        {% if p.stock_quantity > 0 %}
+                            <span style="color: green; font-weight: bold;">{{ p.stock_quantity }}</span>
+                        {% else %}
+                            <span style="color: red; font-weight: bold;">Hết hàng</span>
+                        {% endif %}
+                    </td>
+                    <td>{{ p.total_sales }}</td>
+                    <td>{{ p.rating_avg }} ⭐</td>
+                    <td>
+                        <a href="#" class="btn-action btn-edit">Sửa</a>
+                        <!-- Form xóa sản phẩm (Demo) -->
+                        <!-- <form action="{{ url_for('delete_product', prod_id=p.prod_id) }}" method="POST" style="display:inline;">
+                            <button type="submit" class="btn-action btn-delete" onclick="return confirm('Xóa sản phẩm này?')">Xóa</button>
+                        </form> -->
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+            <p>Không tìm thấy sản phẩm nào.</p>
+        {% endif %}
+
+    </div>
+</div>
+{% endblock %}
