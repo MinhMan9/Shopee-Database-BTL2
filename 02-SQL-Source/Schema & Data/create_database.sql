@@ -359,7 +359,7 @@ CREATE TABLE [ORDER] (
   [shop_id] int,
   [total_amount] decimal(18,2),
   [ship_method] nvarchar(50),
-  [shipping_id] int
+  [shipping_id] int NULL
 )
 
 -- --- Bảng ORDER ---
@@ -513,23 +513,25 @@ SET IDENTITY_INSERT SHIPMENT_PROVIDER OFF;
 GO
 
 CREATE TABLE [SHIPMENT] (
-  [shipment_id] int PRIMARY KEY IDENTITY(1, 1),
-  [order_id] int,
-  [payment_date] datetime,
-  [amount] decimal(18,2),
-  [method] nvarchar(50),
-  [status] nvarchar(50),
-  [provider_id] int
-)
+    [shipment_id] INT IDENTITY(1,1) PRIMARY KEY, 
+    [order_id] INT NOT NULL,
+    [tracking_no] VARCHAR(50),             
+    [fee] DECIMAL(18, 2),                        
+    [estimated_delivery] DATETIME,
+    [provider_id] INT NOT NULL,
+
+    CONSTRAINT UQ_Shipment_Order UNIQUE ([order_id])
+);
+GO
 
 -- --- Bảng SHIPMENT ---
 SET IDENTITY_INSERT SHIPMENT ON;
-INSERT INTO SHIPMENT (shipment_id, order_id, payment_date, amount, method, status, provider_id) VALUES 
-(1, 1, NULL, 15000, N'Nhanh', N'Đang giao', 1),
-(2, 2, '2025-10-21', 0, N'Tiết kiệm', N'Hoàn thành', 2),
-(3, 3, NULL, 15000, N'Nhanh', N'Đang giao', 3),
-(4, 4, '2025-10-22', 15000, N'Tiết kiệm', N'Đang giao', 2),
-(5, 5, NULL, 20000, N'Tiết kiệm', N'Chờ lấy hàng', 4);
+INSERT INTO SHIPMENT (shipment_id, order_id, tracking_no, fee, estimated_delivery, provider_id) VALUES 
+(1, 1, 'SPX00129388', 15000, '2025-10-21', 1),
+(2, 2, 'GHN88273111', 0, '2025-10-22', 2),
+(3, 3, 'VNP99281122', 15000, '2025-10-23', 3),
+(4, 4, 'GHN88273999', 15000, '2025-10-22', 2),
+(5, 5, 'JNT11223344', 20000, '2025-10-25', 4);
 SET IDENTITY_INSERT SHIPMENT OFF;
 GO
 
@@ -562,7 +564,9 @@ CREATE TABLE [REVIEW] (
   [rating] int,
   [comment] ntext,
   [created_at] datetime,
-  [image_review] varchar(255)
+  [image_review] varchar(255),
+
+  CONSTRAINT UQ_Review_Limit UNIQUE (customer_id, product_id)
 )
 
 -- --- Bảng REVIEW ---
