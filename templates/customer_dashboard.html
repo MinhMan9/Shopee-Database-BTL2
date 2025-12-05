@@ -58,6 +58,8 @@
                 {% else %}
                     <p>Không thể kiểm tra thông tin thăng hạng.</p>
                 {% endif %}
+                
+                <hr>
             </div>
 
             {% else %}
@@ -108,6 +110,12 @@
                 </tbody>
             </table>
             
+            <p style="margin-top: 20px;">
+                <a href="{{ url_for('cart_page') }}">
+                    <button style="background-color: #007bff;">Xem Chi Tiết Giỏ Hàng và Chỉnh Sửa</button>
+                </a>
+            </p>
+
             <h4>Voucher có thể áp dụng</h4>
             <div style="padding: 15px; border: 1px solid #c3e6cb; background-color: #f0fff0;">
                 {% set applicable_vouchers = vouchers_with_status | selectattr('is_valid_for_cart') | list %}
@@ -172,13 +180,13 @@
                 
                 <input type="hidden" name="tab" value="products">
 
-                <label for="ten_dm">Tên Danh mục:</label>
+                <label for="ten_dm">Tên Danh mục (LIKE):</label>
                 <input type="text" id="ten_dm" name="ten_dm" value="{{ request.args.get('ten_dm') or '' }}" style="margin-right: 15px;">
                 
-                <label for="min_sales">Doanh số Min:</label>
+                <label for="min_sales">Doanh số Min (Đã bán):</label>
                 <input type="number" id="min_sales" name="min_sales" value="{{ request.args.get('min_sales') or '' }}" style="margin-right: 15px;">
                 
-                <label for="min_rating">Rating Min:</label>
+                <label for="min_rating">Rating Min (Ví dụ: 4.5):</label>
                 <input type="number" id="min_rating" name="min_rating" step="0.1" value="{{ request.args.get('min_rating') or '' }}" style="margin-right: 15px;">
                 
                 <button type="submit" style="background-color: #ee4d2d;">Tìm kiếm/Lọc</button>

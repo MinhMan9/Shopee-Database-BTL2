@@ -8,7 +8,14 @@
         .header { background-color: #ee4d2d; color: white; padding: 15px 30px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
         .header a { color: white; text-decoration: none; font-size: 1.2em; font-weight: bold; }
         .content { padding: 30px; max-width: 1400px; margin: 20px auto; background: white; border-radius: 8px; box-shadow: 0 4px 8px rgba(0,0,0,0.05); }
-        .flash-messages { list-style: none; padding: 0; margin-bottom: 20px; }
+        
+        /* CSS cho Flash Messages */
+        .flash-messages { 
+            list-style: none; 
+            padding: 0; 
+            margin-bottom: 20px; 
+            transition: opacity 0.5s ease-out; /* Thêm hiệu ứng mờ dần */
+        }
         .flash-messages li { margin-bottom: 5px; padding: 10px; border-radius: 4px; font-weight: bold; }
         .success { background-color: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
         .error { background-color: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
@@ -30,7 +37,7 @@
     <div class="content">
         {% with messages = get_flashed_messages(with_categories=true) %}
             {% if messages %}
-                <ul class="flash-messages">
+                <ul id="flash-container" class="flash-messages">
                 {% for category, message in messages %}
                     <li class="{{ category }}">{{ message }}</li>
                 {% endfor %}
@@ -40,5 +47,25 @@
 
         {% block content %}{% endblock %}
     </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const flashContainer = document.getElementById('flash-container');
+            const hideDelay = 7000; // 7000 milliseconds = 7 giây (trong khoảng 5-10s)
+
+            if (flashContainer) {
+                setTimeout(() => {
+                    // 1. Thay đổi opacity để tạo hiệu ứng mờ dần (nếu có CSS transition)
+                    flashContainer.style.opacity = '0';
+                    
+                    // 2. Sau khi mờ xong (0.5s), xóa hẳn element khỏi DOM
+                    setTimeout(() => {
+                        flashContainer.remove();
+                    }, 500); 
+
+                }, hideDelay);
+            }
+        });
+    </script>
 </body>
 </html>

@@ -30,10 +30,32 @@
             margin-bottom: 15px; 
             border-radius: 5px;
         }
+        .add-to-cart-form {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-top: 20px;
+        }
+        .quantity-input {
+            width: 60px;
+            text-align: center;
+            padding: 8px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+        }
+        .btn-add {
+            background-color: #ff6600;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: bold;
+        }
     </style>
 
     <a href="{{ url_for('customer_dashboard') }}?tab=products">
-        <button style="background-color: #4ca4f1; margin-bottom: 20px;">
+        <button style="background-color: #6c757d; margin-bottom: 20px;">
             ← Quay lại Khám phá Sản phẩm
         </button>
     </a>
@@ -57,11 +79,18 @@
                     <p><strong>Tổng Số Đánh Giá:</strong> {{ total_reviews }}</p>
                 </div>
                 
-                <p><strong>Tình trạng:</strong> {{ product.status }}</p>
                 <p><strong>Tồn kho:</strong> {{ product.stock_quantity }}</p>
-                <p><strong>Đã bán:</strong> {{ product.total_sales }}</p>
                 
-                <button style="background-color: #007bff; padding: 12px 25px; margin-top: 15px;">Thêm vào Giỏ hàng</button>
+                <form method="POST" action="{{ url_for('add_to_cart') }}" class="add-to-cart-form">
+                    <input type="hidden" name="prod_id" value="{{ product.prod_id }}">
+                    <input type="hidden" name="shop_id" value="{{ product.shop_id }}"> <label for="qty" style="font-weight: bold;">Số lượng:</label>
+                    <input type="number" id="qty" name="quantity" value="1" min="1" 
+                           max="{{ product.stock_quantity }}" class="quantity-input" required>
+                    
+                    <button type="submit" class="btn-add">
+                        🛒 Thêm vào Giỏ hàng
+                    </button>
+                </form>
             </div>
 
             <div style="flex: 3;">
@@ -71,7 +100,7 @@
                     <p><strong>Thông số:</strong> {{ product.product_specification | default('N/A') }}</p>
                 </div>
 
-                <h4>Chi tiết Sản phẩm</h4>
+                <h4>Chi tiết Sản phẩm (Specification & Attribute)</h4>
                 {% if specs or attributes %}
                     <ul>
                         {% for spec in specs %}

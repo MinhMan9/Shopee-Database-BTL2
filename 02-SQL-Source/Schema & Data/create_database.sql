@@ -5,28 +5,51 @@ USE SHOPEE_CLONE
 GO
 
 CREATE TABLE [USER] (
-  [user_id] int PRIMARY KEY IDENTITY(1, 1),
-  [username] varchar(50),
-  [password] varchar(255),
-  [email] varchar(100),
-  [phone_number] varchar(15),
-  [gender] nvarchar(10),
+  [user_id]      int          PRIMARY KEY IDENTITY(1, 1),
+  [username]     varchar(50)  NOT NULL UNIQUE,          -- username duy nhất (tốt cho login)
+  [password]     varchar(255) NOT NULL,
+  [email]        varchar(100) NOT NULL,
+  [phone_number] varchar(10)  NOT NULL,
+  [gender]       nvarchar(15) NOT NULL,
   [day_of_birth] date,
-  [avatar] varchar(255),
-  [day_create] datetime DEFAULT (getdate())
-)
+  [avatar]       varchar(255),
+  [day_create]   datetime     DEFAULT (getdate()),
+
+  -- 2. Email là duy nhất trong hệ thống
+  CONSTRAINT UQ_USER_Email UNIQUE ([email]),
+
+  -- 4. Số điện thoại (của user/customer) là duy nhất trong hệ thống
+  CONSTRAINT UQ_USER_Phone UNIQUE ([phone_number]),
+
+  -- 3. Giới tính chỉ nhận 'Nam', 'Nữ', 'Khác'
+  CONSTRAINT CK_USER_Gender
+      CHECK ([gender] IN (N'Nam', N'Nữ', N'Khác')),
+
+  -- 5. SĐT chỉ chứa số và đúng 10 ký tự
+  CONSTRAINT CK_USER_Phone_Format
+      CHECK (
+        LEN([phone_number]) = 10
+        AND [phone_number] NOT LIKE '%[^0-9]%'
+      ),
+
+  -- 1. Email đúng định dạng cơ bản: có @ và . phía sau
+  CONSTRAINT CK_USER_Email_Format
+      CHECK ([email] LIKE '%_@_%._%')
+);
+GO
 
 SET IDENTITY_INSERT [USER] ON;
-INSERT INTO [USER] (user_id, username, password, email, phone_number, gender, day_of_birth, avatar, day_create) VALUES 
-(1, 'nguyenvanA', 'pass123', 'a@gmail.com', '901234567', N'Nam', '2000-01-01', 'ava1.jpg', '2024-01-01'),
-(2, 'tranthiB', 'pass456', 'b@gmail.com', '902345678', N'Nữ', '2002-05-05', 'ava2.jpg', '2024-02-01'),
-(3, 'shop_apple', 'shop123', 'shop1@mail.com', '908888888', N'Khác', '1990-01-01', 'logo1.jpg', '2023-01-01'),
-(4, 'shop_thoitrang', 'shop456', 'shop2@mail.com', '909999999', N'Khác', '1995-10-10', 'logo2.jpg', '2023-05-01'),
-(5, 'lequangC', 'pass789', 'c@gmail.com', '903456789', N'Nam', '1998-09-15', 'ava3.jpg', '2023-11-10'),
-(6, 'beauty_shop', 'shop789', 'shop3@mail.com', '907777777', N'Khác', '1993-07-20', 'logo3.jpg', '2022-09-01'),
-(7, 'shop_giadung', 'shop321', 'shop4@mail.com', '908888888', N'Khác', '1992-12-01', 'logo4.jpg', '2023-12-01');
+INSERT INTO [USER] (user_id, username, password, email, phone_number, gender, day_of_birth, avatar, day_create) VALUES 
+(1, 'nguyenvanA',   'pass123', 'a@gmail.com',        '0901234567', N'Nam',   '2000-01-01', 'ava1.jpg',  '2024-01-01'),
+(2, 'tranthiB',     'pass456', 'b@gmail.com',        '0902345678', N'Nữ',    '2002-05-05', 'ava2.jpg',  '2024-02-01'),
+(3, 'shop_apple',   'shop123', 'shop1@mail.com',     '0908888888', N'Khác',  '1990-01-01', 'logo1.jpg', '2023-01-01'),
+(4, 'shop_thoitrang','shop456','shop2@mail.com',     '0909999999', N'Khác',  '1995-10-10', 'logo2.jpg', '2023-05-01'),
+(5, 'lequangC',     'pass789', 'c@gmail.com',        '0903456789', N'Nam',   '1998-09-15', 'ava3.jpg',  '2023-11-10'),
+(6, 'beauty_shop',  'shop789', 'shop3@mail.com',     '0907777777', N'Khác',  '1993-07-20', 'logo3.jpg', '2022-09-01'),
+(7, 'shop_giadung', 'shop321', 'shop4@mail.com',     '0906666666', N'Khác',  '1992-12-01', 'logo4.jpg', '2023-12-01');
 SET IDENTITY_INSERT [USER] OFF;
 GO
+
 
 CREATE TABLE [CUSTOMER] (
   [customer_id] int PRIMARY KEY,
@@ -62,17 +85,41 @@ INSERT INTO SHOP (shop_id, tax_code, Address, Shop_description, Total_sales, Rat
 GO
 
 CREATE TABLE [MEMBERSHIP_TIER] (
-  [tier_id] int PRIMARY KEY IDENTITY(1, 1),
-  [tier_name] nvarchar(50),
-  [tier_lvl] int,
-  [min_spending] decimal(18,2),
-  [max_spending] decimal(18,2),
-  [description] nvarchar(255),
-  [min_order] int,
-  [max_order] int,
+  [tier_id]          int PRIMARY KEY IDENTITY(1, 1),
+  [tier_name]        nvarchar(50),
+  [tier_lvl]         int,
+  [min_spending]     decimal(18,2),
+  [max_spending]     decimal(18,2),
+  [description]      nvarchar(255),
+  [min_order]        int,
+  [max_order]        int,
   [discount_percent] float,
-  [shopee_coin] int
-)
+  [shopee_coin]      int,
+
+  -- 9. Tên hạng thẻ chỉ trong {Thành Viên, Bạc, Vàng, Kim Cương}
+  CONSTRAINT CK_TIER_Name
+      CHECK ([tier_name] IN (N'Thành Viên', N'Bạc', N'Vàng', N'Kim Cương')),
+
+  -- 10. Tier_lvl ∈ [1..4]
+  CONSTRAINT CK_TIER_Level
+      CHECK ([tier_lvl] BETWEEN 1 AND 4),
+
+  -- 11. min_spending, min_order, shopee_coin không âm
+  CONSTRAINT CK_TIER_MinSpending
+      CHECK ([min_spending] >= 0),
+
+  CONSTRAINT CK_TIER_MinOrder
+      CHECK ([min_order] >= 0),
+
+  CONSTRAINT CK_TIER_Coin
+      CHECK ([shopee_coin] >= 0),
+
+  -- bonus: discount_percent dạng 0–1 (0.05 = 5%, 0.1 = 10%)
+  CONSTRAINT CK_TIER_DiscountPercent
+      CHECK ([discount_percent] BETWEEN 0 AND 1)
+);
+GO
+
 
 -- --- Bảng MEMBERSHIP_TIER ---
 SET IDENTITY_INSERT MEMBERSHIP_TIER ON;
@@ -124,18 +171,27 @@ SET IDENTITY_INSERT ITEM OFF;
 GO
 
 CREATE TABLE [PRODUCT_VARIANT] (
-  [prod_id] int PRIMARY KEY IDENTITY(1, 1),
-  [item_id] int,
-  [prod_name] nvarchar(200),
-  [prod_description] ntext,
-  [price] decimal(18,2),
-  [stock_quantity] int,
+  [prod_id]               int PRIMARY KEY IDENTITY(1, 1),
+  [item_id]               int,
+  [prod_name]             nvarchar(200),
+  [prod_description]      ntext,
+  [price]                 decimal(18,2),
+  [stock_quantity]        int,
   [product_specification] nvarchar(255),
-  [illustration_images] varchar(255),
-  [status] nvarchar(50),
-  [total_sales] int,
-  [rating_avg] float
-)
+  [illustration_images]   varchar(255),
+  [status]                nvarchar(50),
+  [total_sales]           int,
+  [rating_avg]            float,
+
+  -- 6. stock_quantity không âm
+  CONSTRAINT CK_PRODUCT_StockQuantity
+      CHECK ([stock_quantity] >= 0),
+
+  -- bonus: giá không âm (hợp lý cho dữ liệu)
+  CONSTRAINT CK_PRODUCT_Price
+      CHECK ([price] >= 0)
+);
+GO
 
 -- --- Bảng PRODUCT_VARIANT ---
 SET IDENTITY_INSERT PRODUCT_VARIANT ON;
@@ -228,11 +284,16 @@ SET IDENTITY_INSERT ILLUSTRATIVE_IMAGE OFF;
 GO
 
 CREATE TABLE [CART] (
-  [cart_id] int PRIMARY KEY IDENTITY(1, 1),
-  [user_id] int,
+  [cart_id]       int PRIMARY KEY IDENTITY(1, 1),
+  [user_id]       int,
   [total_product] int,
-  [total_payment] decimal(18,2)
-)
+  [total_payment] decimal(18,2),
+
+  -- 13. Mỗi Customer chỉ có 1 Cart
+  CONSTRAINT UQ_CART_User UNIQUE ([user_id])
+);
+GO
+
 
 -- --- Bảng CART ---
 SET IDENTITY_INSERT CART ON;
@@ -298,11 +359,7 @@ CREATE TABLE [ORDER] (
   [shop_id] int,
   [total_amount] decimal(18,2),
   [ship_method] nvarchar(50),
-<<<<<<< HEAD
-  [shipping_id] int
-=======
   [shipping_id] int NULL
->>>>>>> e2f75c4d9bb8c26ad2023ae163278636ff678c21
 )
 
 -- --- Bảng ORDER ---
@@ -364,14 +421,24 @@ SET IDENTITY_INSERT ORDER_STATUS OFF;
 GO
 
 CREATE TABLE [VOUCHER] (
-  [voucher_id] int PRIMARY KEY IDENTITY(1, 1),
-  [description] nvarchar(255),
-  [discount_type] nvarchar(50),
-  [condition] nvarchar(255),
-  [valid_from] datetime,
-  [valid_to] datetime,
-  [quantity_available] int
-)
+  [voucher_id]        int PRIMARY KEY IDENTITY(1, 1),
+  [description]       nvarchar(255),
+  [discount_type]     nvarchar(50),
+  [condition]         nvarchar(255),
+  [valid_from]        datetime,
+  [valid_to]          datetime,
+  [quantity_available] int,
+
+  -- 7. Ngày hết hạn sau ngày bắt đầu
+  CONSTRAINT CK_VOUCHER_ValidDate
+      CHECK ([valid_from] < [valid_to]),
+
+  -- 8. Số lượng voucher không âm
+  CONSTRAINT CK_VOUCHER_Quantity
+      CHECK ([quantity_available] >= 0)
+);
+GO
+
 
 -- --- Bảng VOUCHER ---
 SET IDENTITY_INSERT VOUCHER ON;
@@ -401,13 +468,17 @@ INSERT INTO CUSTOMER_VOUCHER (customer_id, voucher_id) VALUES 
 GO
 
 CREATE TABLE [PAYMENT] (
-  [payment_id] int PRIMARY KEY IDENTITY(1, 1),
-  [order_id] int,
+  [payment_id]   int PRIMARY KEY IDENTITY(1, 1),
+  [order_id]     int,
   [payment_date] datetime,
-  [amount] decimal(18,2),
-  [method] nvarchar(50),
-  [status] nvarchar(50)
-)
+  [amount]       decimal(18,2),
+  [method]       nvarchar(50),
+  [status]       nvarchar(50),
+
+  -- 14. Mỗi Order chỉ có 1 Payment
+  CONSTRAINT UQ_PAYMENT_Order UNIQUE ([order_id])
+);
+GO
 
 -- --- Bảng PAYMENT ---
 SET IDENTITY_INSERT PAYMENT ON;
@@ -442,25 +513,6 @@ SET IDENTITY_INSERT SHIPMENT_PROVIDER OFF;
 GO
 
 CREATE TABLE [SHIPMENT] (
-<<<<<<< HEAD
-  [shipment_id] int PRIMARY KEY IDENTITY(1, 1),
-  [order_id] int,
-  [payment_date] datetime,
-  [amount] decimal(18,2),
-  [method] nvarchar(50),
-  [status] nvarchar(50),
-  [provider_id] int
-)
-
--- --- Bảng SHIPMENT ---
-SET IDENTITY_INSERT SHIPMENT ON;
-INSERT INTO SHIPMENT (shipment_id, order_id, payment_date, amount, method, status, provider_id) VALUES 
-(1, 1, NULL, 15000, N'Nhanh', N'Đang giao', 1),
-(2, 2, '2025-10-21', 0, N'Tiết kiệm', N'Hoàn thành', 2),
-(3, 3, NULL, 15000, N'Nhanh', N'Đang giao', 3),
-(4, 4, '2025-10-22', 15000, N'Tiết kiệm', N'Đang giao', 2),
-(5, 5, NULL, 20000, N'Tiết kiệm', N'Chờ lấy hàng', 4);
-=======
     [shipment_id] INT IDENTITY(1,1) PRIMARY KEY, 
     [order_id] INT NOT NULL,
     [tracking_no] VARCHAR(50),             
@@ -480,7 +532,6 @@ INSERT INTO SHIPMENT (shipment_id, order_id, tracking_no, fee, estimated_deliver
 (3, 3, 'VNP99281122', 15000, '2025-10-23', 3),
 (4, 4, 'GHN88273999', 15000, '2025-10-22', 2),
 (5, 5, 'JNT11223344', 20000, '2025-10-25', 4);
->>>>>>> e2f75c4d9bb8c26ad2023ae163278636ff678c21
 SET IDENTITY_INSERT SHIPMENT OFF;
 GO
 
@@ -513,13 +564,9 @@ CREATE TABLE [REVIEW] (
   [rating] int,
   [comment] ntext,
   [created_at] datetime,
-<<<<<<< HEAD
-  [image_review] varchar(255)
-=======
   [image_review] varchar(255),
 
   CONSTRAINT UQ_Review_Limit UNIQUE (customer_id, product_id)
->>>>>>> e2f75c4d9bb8c26ad2023ae163278636ff678c21
 )
 
 -- --- Bảng REVIEW ---
