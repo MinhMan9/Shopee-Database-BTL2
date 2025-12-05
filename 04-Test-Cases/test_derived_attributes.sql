@@ -391,3 +391,4 @@ WHERE pv.prod_id = @ReviewTestProdId;
 GO
 
 PRINT N'========== END TEST DERIVED ATTRIBUTE TRIGGERS ==========';
+

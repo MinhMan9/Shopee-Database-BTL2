@@ -178,3 +178,4 @@ VALUES (N'Kim Cương', 4, 0, 1000000, N'Test discount âm',
 
 
 PRINT N'========== END OF CHECK TESTS ==========';
+
