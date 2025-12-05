@@ -4,15 +4,30 @@ GO
 PRINT N'========== TEST TRIGGER: SHIPMENT_BusinessRules ==========';
 
 --------------------------------------------------
--- 1.1 VALID: order_id = 2 có status cuối cùng = 'Đã giao',
---            ORDER_GROUP.created_at = '2025-10-21'
+-- 1.1 VALID:
+--  Tạo 1 order mới có trạng thái cuối cùng = 'Đã giao',
+--  ORDER_GROUP 2 có created_at = '2025-10-21'
+--  estimated_delivery >= created_at  -> HỢP LỆ
 --------------------------------------------------
-INSERT INTO SHIPMENT (order_id, payment_date, amount, method, [status], provider_id)
-VALUES (2, '2025-10-22', 15000, N'Nhanh', N'Đang giao', 1);
+DECLARE @Order_Valid INT;
+
+INSERT INTO [ORDER] (order_group_id, customer_id, shop_id, total_amount, ship_method, shipping_id)
+VALUES (2, 2, 4, 200000, N'Tiết kiệm', NULL);
+SET @Order_Valid = SCOPE_IDENTITY();
+
+-- Trạng thái 'Đã giao' cho order mới
+INSERT INTO ORDER_STATUS (order_id, status_timestamp, [status])
+VALUES (@Order_Valid, '2025-11-20T08:00:00', N'Đã giao');
+
+-- Tạo SHIPMENT hợp lệ: estimated_delivery >= created_at của ORDER_GROUP 2
+INSERT INTO SHIPMENT (order_id, tracking_no, fee, estimated_delivery, provider_id)
+VALUES (@Order_Valid, 'TEST_OK_1', 15000, '2025-11-21', 1);
 -- ✅ EXPECTED: HỢP LỆ
 
+
 --------------------------------------------------
--- 1.2 INVALID: Shipment cho đơn CHƯA CÓ status nào
+-- 1.2 INVALID:
+--  Shipment cho đơn CHƯA CÓ bất kỳ ORDER_STATUS nào
 --------------------------------------------------
 DECLARE @OrderNoStatus INT;
 
@@ -20,38 +35,44 @@ INSERT INTO [ORDER] (order_group_id, customer_id, shop_id, total_amount, ship_me
 VALUES (1, 1, 3, 100000, N'Nhanh', NULL);
 SET @OrderNoStatus = SCOPE_IDENTITY();
 
-INSERT INTO SHIPMENT (order_id, payment_date, amount, method, [status], provider_id)
-VALUES (@OrderNoStatus, '2025-11-01', 15000, N'Nhanh', N'Đang giao', 1);
--- ❌ EXPECTED ERROR: SHIPMENT chỉ cho đơn có trạng thái 'Đang giao'/'Đã giao'
+INSERT INTO SHIPMENT (order_id, tracking_no, fee, estimated_delivery, provider_id)
+VALUES (@OrderNoStatus, 'TEST_FAIL_NOSTATUS', 15000, '2025-11-01', 1);
+-- ❌ EXPECTED ERROR:
+--    SHIPMENT vi phạm ràng buộc: Shipment chỉ được tạo cho đơn hàng
+--    có trạng thái 'Đang giao' hoặc 'Đã giao'.
+
 
 --------------------------------------------------
--- 1.3 INVALID: payment_date < ORDER_GROUP.created_at
---   order_id = 3 thuộc ORDER_GROUP 3, created_at = '2025-10-22'
+-- 1.3 INVALID:
+--  estimated_delivery < ORDER_GROUP.created_at
+--  order_id = 6 thuộc ORDER_GROUP 5, created_at = '2025-10-24'
+--  Order 6 đã 'Đã giao' -> qua rule 1, nhưng SAI rule 3
 --------------------------------------------------
-INSERT INTO SHIPMENT (order_id, payment_date, amount, method, [status], provider_id)
-VALUES (3, '2025-10-20', 15000, N'Nhanh', N'Đang giao', 1);
--- ❌ EXPECTED ERROR: Ngày giao < ngày đặt hàng
+INSERT INTO SHIPMENT (order_id, tracking_no, fee, estimated_delivery, provider_id)
+VALUES (6, 'TEST_FAIL_DATE', 15000, '2025-10-20', 1);
+-- ❌ EXPECTED ERROR:
+--    Ngày giao dự kiến (estimated_delivery) < ngày đặt hàng (ORDER_GROUP.created_at)
 
 
 PRINT N'========== TEST TRIGGER: SHIPMENT_STATUS_OnePerShipment ==========';
 
 --------------------------------------------------
--- 2.1 Tạo ORDER + ORDER_STATUS + SHIPMENT hợp lệ để test
+-- 2.1 Tạo ORDER + ORDER_STATUS + SHIPMENT mới hợp lệ để test
 --------------------------------------------------
 DECLARE @NewOrderId INT, @NewShipId INT;
 
--- Tạo 1 order mới, gắn vào ORDER_GROUP 2 (created_at = '2025-10-21')
+-- Order mới gắn vào ORDER_GROUP 3 (created_at = '2025-10-22')
 INSERT INTO [ORDER] (order_group_id, customer_id, shop_id, total_amount, ship_method, shipping_id)
-VALUES (2, 2, 4, 200000, N'Tiết kiệm', NULL);
+VALUES (3, 3, 3, 300000, N'Nhanh', NULL);
 SET @NewOrderId = SCOPE_IDENTITY();
 
--- Tạo ORDER_STATUS 'Đang giao' cho order mới -> thỏa trigger SHIPMENT_BusinessRules
+-- Trạng thái 'Đang giao' để thỏa SHIPMENT_BusinessRules
 INSERT INTO ORDER_STATUS (order_id, status_timestamp, [status])
-VALUES (@NewOrderId, '2025-11-20T08:00:00', N'Đang giao');
+VALUES (@NewOrderId, '2025-11-22T08:00:00', N'Đang giao');
 
--- Tạo SHIPMENT mới, payment_date >= ORDER_GROUP.created_at
-INSERT INTO SHIPMENT (order_id, payment_date, amount, method, [status], provider_id)
-VALUES (@NewOrderId, '2025-11-21', 15000, N'Tiết kiệm', N'Đang giao', 1);
+-- Tạo SHIPMENT mới, estimated_delivery >= created_at của ORDER_GROUP 3
+INSERT INTO SHIPMENT (order_id, tracking_no, fee, estimated_delivery, provider_id)
+VALUES (@NewOrderId, 'TEST_SHIP_STATUS', 15000, '2025-11-23', 1);
 SET @NewShipId = SCOPE_IDENTITY();
 
 -- 2.1 VALID: Thêm 1 Shipment_Status duy nhất → HỢP LỆ
@@ -64,7 +85,8 @@ VALUES (@NewShipId, N'Lấy hàng thành công', GETDATE(), N'Kho test');
 --------------------------------------------------
 INSERT INTO SHIPMENT_STATUS (shipment_id, status_name, update_time, current_location)
 VALUES (@NewShipId, N'Thử thêm status lần 2', GETDATE(), N'Kho test 2');
--- ❌ EXPECTED ERROR: Mỗi shipment chỉ có 1 Shipment_Status
+-- ❌ EXPECTED ERROR:
+--    Ràng buộc: Mỗi Shipment chỉ được phép có một bản ghi Shipment_Status.
 
 --------------------------------------------------
 -- 2.3 INVALID: 2 status cho cùng shipment_id trong 1 batch
@@ -72,30 +94,40 @@ VALUES (@NewShipId, N'Thử thêm status lần 2', GETDATE(), N'Kho test 2');
 INSERT INTO SHIPMENT_STATUS (shipment_id, status_name, update_time, current_location)
 VALUES (@NewShipId, N'Test batch 1', GETDATE(), N'Kho X'),
        (@NewShipId, N'Test batch 2', GETDATE(), N'Kho Y');
--- ❌ EXPECTED ERROR: batch insert 2 dòng cùng shipment_id
+-- ❌ EXPECTED ERROR:
+--    Ràng buộc: Mỗi Shipment chỉ được phép có một bản ghi Shipment_Status.
+--    (ở đây vi phạm do batch insert 2 dòng cùng shipment_id)
 
 
 PRINT N'========== TEST TRIGGER: REVIEW_OnlyAfterDelivered ==========';
 
 --------------------------------------------------
 -- 3.1 VALID:
---  Customer 1 đã mua product_id 1 trong order_id 1
---  Order 1 có ORDER_STATUS 'Đã giao' → review hợp lệ
+--  Customer 3 đã mua product_id 1 trong order_id 3
+--  Order 3 có ORDER_STATUS 'Đã giao' → thỏa điều kiện trigger
+--  (cặp (product_id=1, customer_id=3) CHƯA có trong bảng REVIEW,
+--   nên không vướng UNIQUE UQ_Review_Limit)
 --------------------------------------------------
 INSERT INTO REVIEW (product_id, customer_id, rating, comment, created_at, image_review)
-VALUES (1, 1, 5, N'Review hợp lệ sau đơn đã giao', '2025-10-25', 'rv_ok_test.jpg');
--- ✅ OK
+VALUES (1, 3, 5, N'Review hợp lệ sau đơn đã giao', '2025-10-25', 'rv_ok_test.jpg');
+-- ✅ EXPECTED: HỢP LỆ
 
 --------------------------------------------------
 -- 3.2 INVALID:
---  Customer 1 cố review product_id 6 (trong dữ liệu gốc chỉ customer 5 mua)
+--  Customer 1 cố review product_id 6
+--  (dữ liệu gốc chỉ customer 5 từng mua product 6 và đã 'Đã giao')
+--  → Không tìm được đơn 'Đã giao' tương ứng cho (6,1) → trigger chặn
 --------------------------------------------------
 INSERT INTO REVIEW (product_id, customer_id, rating, comment, created_at, image_review)
 VALUES (6, 1, 5, N'Review sai, chưa từng mua', '2025-10-25', 'rv_fail_test.jpg');
--- ❌ EXPECTED ERROR: chưa có đơn 'Đã giao' với sản phẩm này
+-- ❌ EXPECTED ERROR:
+--    Review vi phạm ràng buộc: Khách chỉ được đánh giá sản phẩm
+--    sau khi đã có ít nhất một đơn hàng 'Đã giao' với sản phẩm đó.
 
 
 PRINT N'========== END TEST TRIGGERS ==========';
+GO
+
 
 USE SHOPEE_CLONE
 GO
