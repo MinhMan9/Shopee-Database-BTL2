@@ -39,7 +39,7 @@ VALUES ('chk_dup_email', '123', 'a@gmail.com', '0911111114', N'Nam');
 
 -- INVALID: Gender không thuộc tập cho phép
 INSERT INTO [USER] (username, [password], email, phone_number, gender)
-VALUES ('chk_bad_gender', '123', 'bad_gender@example.com', '0911111115', N'Giới tính khác');
+VALUES ('chk_bad_gender', '123', 'bad_gender@example.com', '0911111115', N'Giới tính');
 -- -> EXPECTED ERROR: CK_USER_Gender
 
 --------------------------------------------------
@@ -178,3 +178,4 @@ VALUES (N'Kim Cương', 4, 0, 1000000, N'Test discount âm',
 
 
 PRINT N'========== END OF CHECK TESTS ==========';
+

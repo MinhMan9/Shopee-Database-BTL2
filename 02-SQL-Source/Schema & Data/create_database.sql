@@ -10,7 +10,7 @@ CREATE TABLE [USER] (
   [password]     varchar(255) NOT NULL,
   [email]        varchar(100) NOT NULL,
   [phone_number] varchar(10)  NOT NULL,
-  [gender]       nvarchar(10) NOT NULL,
+  [gender]       nvarchar(15) NOT NULL,
   [day_of_birth] date,
   [avatar]       varchar(255),
   [day_create]   datetime     DEFAULT (getdate()),

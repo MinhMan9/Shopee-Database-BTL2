@@ -324,7 +324,7 @@ GO
 -------------------------------------------------------------
 USE SHOPEE_CLONE;
 DECLARE @ReviewTestProdId INT = 1;
-DECLARE @ReviewTestCustomerId INT = 1;
+DECLARE @ReviewTestCustomerId INT = 3;
 DECLARE @NewReviewId INT;
 
 PRINT N'--- TEST 4: PRODUCT_VARIANT.rating_avg ---';
@@ -391,3 +391,4 @@ WHERE pv.prod_id = @ReviewTestProdId;
 GO
 
 PRINT N'========== END TEST DERIVED ATTRIBUTE TRIGGERS ==========';
+
