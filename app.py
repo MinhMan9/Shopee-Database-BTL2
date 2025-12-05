@@ -1,6 +1,7 @@
 from flask import Flask, render_template, request, redirect, url_for, flash, session
 import pyodbc
 from decimal import Decimal
+from datetime import datetime
 
 app = Flask(__name__)
 # KHÓA BÍ MẬT LÀ BẮT BUỘC để Session hoạt động ổn định
@@ -248,6 +249,29 @@ def seller_dashboard():
         
     SHOP_ID = session['user_id']
     
+    # --- [NEW] LẤY THÔNG TIN THỐNG KÊ DASHBOARD ---
+    # 1. Tổng quan (Revenue, Rating, Orders, Items)
+    sql_stats = "EXEC sp_GetShopDashboardStats @ShopID = ?"
+    stats_data, _ = execute_select(sql_stats, (SHOP_ID,))
+    dashboard_stats = stats_data[0] if stats_data else {}
+
+    # 2. Sản phẩm bán chạy nhất
+    sql_best_seller = "SELECT dbo.fn_GetShopBestSellingProduct(?) AS BestSeller"
+    best_seller_data, _ = execute_select(sql_best_seller, (SHOP_ID,))
+    best_seller = best_seller_data[0]['BestSeller'] if best_seller_data else "Chưa có"
+
+    # 3. Doanh thu tháng hiện tại
+    current_month = datetime.now().month
+    current_year = datetime.now().year
+    sql_monthly_rev = "SELECT dbo.fn_GetShopMonthlyRevenue(?, ?, ?) AS MonthlyRevenue"
+    monthly_rev_data, _ = execute_select(sql_monthly_rev, (SHOP_ID, current_month, current_year))
+    monthly_revenue = monthly_rev_data[0]['MonthlyRevenue'] if monthly_rev_data else 0
+
+    # 4. Hiệu quả kinh doanh từng sản phẩm
+    sql_prod_perf = "EXEC sp_GetShopProductPerformance @ShopID = ?"
+    product_performance, perf_columns = execute_select(sql_prod_perf, (SHOP_ID,))
+
+    # --- [EXISTING] LẤY DANH SÁCH SẢN PHẨM ĐỂ QUẢN LÝ (GIỮ NGUYÊN LOGIC CŨ) ---
     # Lấy tham số Tìm kiếm/Lọc
     keyword = request.args.get('keyword', '').lower()
     status_filter = request.args.get('status_filter')
@@ -291,7 +315,12 @@ def seller_dashboard():
                            shop_id=SHOP_ID,
                            is_customer_user=session.get('is_customer', False),
                            current_keyword=keyword,
-                           current_status=status_filter) 
+                           current_status=status_filter,
+                           # New Data
+                           dashboard_stats=dashboard_stats,
+                           best_seller=best_seller,
+                           monthly_revenue=monthly_revenue,
+                           product_performance=product_performance) 
 
 @app.route('/seller/reports', methods=['GET'])
 def seller_reports():
@@ -374,16 +403,135 @@ def product_detail(prod_id):
                            total_reviews=total_reviews,
                            calculated_rating_avg=calculated_rating_avg)
 
-# --- Các hàm CRUD (add_product, delete_product) cần được chèn vào đây ---
+# --- Các hàm CRUD (add_product, delete_product) ---
+
 @app.route('/seller/add_product', methods=['GET', 'POST'])
 def add_product():
-    # Thêm logic CRUD của bạn vào đây
-    return "Trang thêm sản phẩm (CRUD logic cần được sao chép vào đây)"
+    if 'user_id' not in session or not session.get('is_shop'):
+        flash('Bạn cần đăng nhập với tài khoản Shop.', 'error')
+        return redirect(url_for('login'))
+    
+    SHOP_ID = session['user_id']
+
+    if request.method == 'POST':
+        # Lấy dữ liệu từ form
+        item_name = request.form.get('item_name')
+        prod_name = request.form.get('prod_name')
+        category_id = request.form.get('category_id')
+        price = request.form.get('price')
+        stock = request.form.get('stock')
+        image_url = request.form.get('image_url')
+        description = request.form.get('description')
+
+        # Validate cơ bản
+        if not all([item_name, prod_name, category_id, price, stock]):
+            flash('Vui lòng điền đầy đủ các trường bắt buộc.', 'error')
+        else:
+            # Gọi Stored Procedure sp_AddProduct
+            sql_add = """
+            EXEC sp_AddProduct 
+                @ShopID = ?, 
+                @CategoryID = ?, 
+                @ItemName = ?, 
+                @ProdName = ?, 
+                @Price = ?, 
+                @Stock = ?, 
+                @Description = ?, 
+                @ImageURL = ?
+            """
+            params = (SHOP_ID, category_id, item_name, prod_name, price, stock, description, image_url)
+            
+            if execute_non_query(sql_add, params):
+                flash('Thêm sản phẩm thành công!', 'success')
+                return redirect(url_for('seller_dashboard'))
+            else:
+                flash('Có lỗi xảy ra khi thêm sản phẩm.', 'error')
+
+    # GET: Lấy danh sách danh mục để hiển thị dropdown
+    # Giả sử lấy tất cả danh mục (hoặc lọc theo shop nếu cần)
+    sql_cats = "SELECT category_id, category_name FROM CATEGORY"
+    categories, _ = execute_select(sql_cats)
+    
+    return render_template('add_product.html', categories=categories)
 
 @app.route('/seller/delete_product/<int:prod_id>', methods=['POST'])
 def delete_product(prod_id):
-    # Thêm logic CRUD của bạn vào đây
-    return "Xóa sản phẩm (CRUD logic cần được sao chép vào đây)"
+    if 'user_id' not in session or not session.get('is_shop'):
+        flash('Bạn cần đăng nhập với tài khoản Shop.', 'error')
+        return redirect(url_for('login'))
+        
+    SHOP_ID = session['user_id']
+    
+    # Gọi Stored Procedure sp_DeleteProduct
+    sql_delete = "EXEC sp_DeleteProduct @ProdID = ?, @ShopID = ?"
+    if execute_non_query(sql_delete, (prod_id, SHOP_ID)):
+        flash('Đã xóa (ngừng kinh doanh) sản phẩm thành công.', 'success')
+    else:
+        flash('Lỗi khi xóa sản phẩm.', 'error')
+        
+    return redirect(url_for('seller_dashboard'))
+
+@app.route('/seller/edit_product/<int:prod_id>', methods=['GET', 'POST'])
+def edit_product(prod_id):
+    if 'user_id' not in session or not session.get('is_shop'):
+        flash('Bạn cần đăng nhập với tài khoản Shop.', 'error')
+        return redirect(url_for('login'))
+    
+    SHOP_ID = session['user_id']
+
+    if request.method == 'POST':
+        # Lấy dữ liệu từ form
+        item_name = request.form.get('item_name')
+        prod_name = request.form.get('prod_name')
+        category_id = request.form.get('category_id')
+        price = request.form.get('price')
+        stock = request.form.get('stock')
+        image_url = request.form.get('image_url')
+        description = request.form.get('description')
+
+        # Validate cơ bản
+        if not all([item_name, prod_name, category_id, price, stock]):
+            flash('Vui lòng điền đầy đủ các trường bắt buộc.', 'error')
+        else:
+            # Gọi Stored Procedure sp_UpdateProduct
+            sql_update = """
+            EXEC sp_UpdateProduct 
+                @ProdID = ?,
+                @ShopID = ?, 
+                @CategoryID = ?, 
+                @ItemName = ?, 
+                @ProdName = ?, 
+                @Price = ?, 
+                @Stock = ?, 
+                @Description = ?, 
+                @ImageURL = ?
+            """
+            params = (prod_id, SHOP_ID, category_id, item_name, prod_name, price, stock, description, image_url)
+            
+            if execute_non_query(sql_update, params):
+                flash('Cập nhật sản phẩm thành công!', 'success')
+                return redirect(url_for('seller_dashboard'))
+            else:
+                flash('Có lỗi xảy ra khi cập nhật sản phẩm.', 'error')
+
+    # GET: Lấy thông tin sản phẩm hiện tại
+    sql_get_prod = """
+    SELECT PV.*, I.item_name, I.category_id 
+    FROM PRODUCT_VARIANT PV 
+    JOIN ITEM I ON PV.item_id = I.item_id 
+    WHERE PV.prod_id = ? AND I.shop_id = ?
+    """
+    prod_data, _ = execute_select(sql_get_prod, (prod_id, SHOP_ID))
+    
+    if not prod_data:
+        flash('Sản phẩm không tồn tại hoặc không thuộc quyền quản lý của bạn.', 'error')
+        return redirect(url_for('seller_dashboard'))
+
+    # Lấy danh sách danh mục
+    sql_cats = "SELECT category_id, category_name FROM CATEGORY"
+    categories, _ = execute_select(sql_cats)
+    
+    return render_template('edit_product.html', product=prod_data[0], categories=categories)
 
 
 if __name__ == '__main__':
