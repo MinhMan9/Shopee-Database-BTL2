@@ -10,7 +10,7 @@ app.secret_key = 'KEY_BI_MAT_CUA_BAN_ABCXYZ'
 
 # --- CẤU HÌNH KẾT NỐI CSDL CỦA BẠN ---
 DRIVER = '{ODBC Driver 17 for SQL Server}'
-SERVER = 'QUANGHUY'
+SERVER = 'TOMPHAN'
 DATABASE = 'SHOPEE_CLONE' 
 
 CONNECTION_STRING = (
