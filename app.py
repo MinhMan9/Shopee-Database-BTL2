@@ -285,33 +285,48 @@ def seller_dashboard():
         
     SHOP_ID = session['user_id']
     
-    # --- TÍCH HỢP SP: sp_GetShopDashboardStats (SP_7) ---
-    # Khởi tạo dashboard_stats mặc định
+    # Khởi tạo dashboard_stats
     dashboard_stats = {
         'TotalRevenue': 0,
-        'RealAvgRating': 0,
         'TotalOrders': 0,
-        'TotalItems': 0,
-        'TotalProductsSold': 0
+        'RealAvgRating': 0,
+        'TotalProductsSold': 0,
+        'TotalItems': 0
     }
-    
-    try:
-        sql_stats = "EXEC sp_GetShopDashboardStats @ShopID = ?"
-        stats_result, _ = execute_select(sql_stats, (SHOP_ID,))
-        if stats_result:
-            dashboard_stats = stats_result[0]
-    except Exception as e:
-        print(f"Lỗi lấy thống kê Dashboard: {e}")
+    best_seller_name = "Chưa có dữ liệu"
 
-    # --- TÍCH HỢP SP: sp_GetShopBestSeller (SP_9) ---
-    best_seller = 'Chưa có'
     try:
-        sql_best_seller = "EXEC sp_GetShopBestSeller @ShopID = ?"
-        best_seller_result, _ = execute_select(sql_best_seller, (SHOP_ID,))
-        if best_seller_result:
-            best_seller = best_seller_result[0]['BestSellerName']
+        # 1. Lấy thống kê tổng quan (SP_7)
+        stats_data, _ = execute_select("EXEC sp_GetShopDashboardStats @ShopID = ?", (SHOP_ID,))
+        if stats_data:
+            row = stats_data[0]
+            dashboard_stats['TotalRevenue'] = row.get('TotalRevenue', 0) or 0
+            dashboard_stats['TotalOrders'] = row.get('TotalOrders', 0) or 0
+            dashboard_stats['RealAvgRating'] = row.get('RealAvgRating', 0) or 0
+            dashboard_stats['TotalProductsSold'] = row.get('TotalProductsSold', 0) or 0
+            dashboard_stats['TotalItems'] = row.get('TotalItems', 0) or 0
+
+        # 2. Lấy sản phẩm bán chạy nhất (SP_8)
+        best_seller_data, _ = execute_select("EXEC sp_GetShopBestSeller @ShopID = ?", (SHOP_ID,))
+        if best_seller_data:
+            best_seller_name = best_seller_data[0].get('BestSellerName', 'Chưa có dữ liệu')
+            
     except Exception as e:
-        print(f"Lỗi lấy sản phẩm bán chạy: {e}")
+        print(f"Error fetching dashboard stats: {e}")
+    
+    return render_template('seller_dashboard.html', 
+                           shop_id=SHOP_ID,
+                           is_customer_user=session.get('is_customer', False),
+                           dashboard_stats=dashboard_stats,
+                           best_seller=best_seller_name)
+
+@app.route('/seller/products')
+def seller_products():
+    if 'user_id' not in session or not session.get('is_shop'):
+        flash('Bạn cần đăng nhập với tài khoản Shop.', 'error')
+        return redirect(url_for('login'))
+        
+    SHOP_ID = session['user_id']
 
     # Lấy tham số Tìm kiếm/Lọc
     keyword = request.args.get('keyword', '').lower()
@@ -349,15 +364,13 @@ def seller_dashboard():
             if name_match and status_match:
                 products.append(p)
 
-    return render_template('seller_dashboard.html', 
+    return render_template('seller_products.html', 
                            products=products, 
                            columns=columns, 
                            shop_id=SHOP_ID,
                            is_customer_user=session.get('is_customer', False),
                            current_keyword=keyword,
-                           current_status=status_filter,
-                           dashboard_stats=dashboard_stats,
-                           best_seller=best_seller) # Truyền biến an toàn
+                           current_status=status_filter)
 
 @app.route('/seller/reports', methods=['GET'])
 def seller_reports():
@@ -473,7 +486,7 @@ def add_product():
             
             if execute_non_query(sql_add, params):
                 flash('Thêm sản phẩm thành công!', 'success')
-                return redirect(url_for('seller_dashboard'))
+                return redirect(url_for('seller_products'))
             return redirect(url_for('add_product')) 
 
     return render_template('add_product.html', categories=categories)
@@ -492,7 +505,7 @@ def edit_product(prod_id):
     
     if not prod_data:
         flash('Sản phẩm không tồn tại hoặc không thuộc quyền quản lý của bạn.', 'error')
-        return redirect(url_for('seller_dashboard'))
+        return redirect(url_for('seller_products'))
     
     if request.method == 'POST':
         item_name = request.form.get('item_name')
@@ -515,7 +528,7 @@ def edit_product(prod_id):
             
             if execute_non_query(sql_update, params):
                 flash('Cập nhật sản phẩm thành công!', 'success')
-                return redirect(url_for('seller_dashboard'))
+                return redirect(url_for('seller_products'))
     
     return render_template('edit_product.html', product=prod_data[0], categories=categories)
 
@@ -534,7 +547,7 @@ def delete_product(prod_id):
     else:
         pass 
         
-    return redirect(url_for('seller_dashboard'))
+    return redirect(url_for('seller_products'))
 
 # --- CÁC HÀM CRUD GIỎ HÀNG ---
 @app.route('/cart')

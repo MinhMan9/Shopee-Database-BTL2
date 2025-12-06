@@ -35,63 +35,15 @@
 
     <hr>
 
-    <h2>📦 Quản Lý Sản Phẩm (Danh Sách Đầy Đủ)</h2>
-    
-    <div style="margin-bottom: 15px;">
-        <a href="{{ url_for('add_product') }}" class="btn btn-success">➕ Thêm Sản Phẩm Mới</a>
+    <div style="text-align: center; margin-top: 40px;">
+        <a href="{{ url_for('seller_products') }}" class="btn btn-primary btn-lg" style="padding: 15px 30px; font-size: 20px;">
+            📦 Quản Lý Danh Sách Sản Phẩm
+        </a>
+        <p style="margin-top: 10px; color: #666;">Xem danh sách, thêm, sửa, xóa sản phẩm của shop.</p>
     </div>
     
-    <!-- Form Tìm kiếm & Lọc -->
-    <form method="GET" action="{{ url_for('seller_dashboard') }}" style="margin-bottom: 20px; padding: 15px; background: #f8f9fa; border-radius: 5px;">
-        <div style="display: flex; gap: 10px;">
-            <input type="text" name="keyword" placeholder="Tìm tên sản phẩm..." value="{{ current_keyword }}" style="padding: 8px; width: 300px;">
-            
-            <select name="status_filter" style="padding: 8px;">
-                <option value="">-- Tất cả trạng thái --</option>
-                <option value="Còn hàng" {% if current_status == 'Còn hàng' %}selected{% endif %}>Còn hàng (Stock > 0)</option>
-                <option value="Hết hàng" {% if current_status == 'Hết hàng' %}selected{% endif %}>Hết hàng</option>
-                <option value="Ngừng kinh doanh" {% if current_status == 'Ngừng kinh doanh' %}selected{% endif %}>Ngừng kinh doanh</option>
-            </select>
-            
-            <button type="submit" style="padding: 8px 15px; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer;">Lọc</button>
-            <a href="{{ url_for('seller_dashboard') }}" style="padding: 8px 15px; background: #6c757d; color: white; text-decoration: none; border-radius: 4px;">Reset</a>
-        </div>
-    </form>
 
-    <table class="table table-bordered">
-        <thead>
-            <tr>
-                {% for col in columns %}
-                    <th>{{ col }}</th>
-                {% endfor %}
-                <th>Hành động</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for product in products %}
-            <tr>
-                {% for col in columns %}
-                    <td>
-                        {% if col == 'price' or col == 'sub_total' or col == 'total_payment' %}
-                            {{ product[col] | format_currency }}
-                        {% else %}
-                            {{ product[col] }}
-                        {% endif %}
-                    </td>
-                {% endfor %}
-                <td>
-                    <a href="{{ url_for('edit_product', prod_id=product['prod_id']) }}" class="btn btn-sm btn-warning">Sửa</a>
-                    <form action="{{ url_for('delete_product', prod_id=product['prod_id']) }}" method="POST" style="display:inline;" onsubmit="return confirm('Bạn có chắc muốn xóa?');">
-                        <button type="submit" class="btn btn-sm btn-danger">Xóa</button>
-                    </form>
-                </td>
-            </tr>
-            {% else %}
-            <tr>
-                <td colspan="{{ columns|length + 1 }}" style="text-align: center;">Không tìm thấy sản phẩm nào.</td>
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
+
+
 
 {% endblock %}
