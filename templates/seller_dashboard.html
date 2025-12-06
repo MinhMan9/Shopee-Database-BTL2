@@ -35,38 +35,6 @@
 
     <hr>
 
-    <h3>📈 Hiệu Quả Kinh Doanh Sản Phẩm</h3>
-    <div style="max-height: 300px; overflow-y: auto; border: 1px solid #eee; margin-bottom: 30px;">
-        <table class="table table-striped">
-            <thead>
-                <tr>
-                    <th>ID</th>
-                    <th>Tên Sản Phẩm</th>
-                    <th>Giá</th>
-                    <th>Đã Bán</th>
-                    <th>Tồn Kho</th>
-                    <th>Đánh Giá</th>
-                    <th>Trạng Thái</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for p in product_performance %}
-                <tr>
-                    <td>{{ p.prod_id }}</td>
-                    <td>{{ p.prod_name }}</td>
-                    <td>{{ p.price | format_currency }}</td>
-                    <td>{{ p.total_sales }}</td>
-                    <td>{{ p.stock_quantity }}</td>
-                    <td>{{ p.rating_avg }}</td>
-                    <td>{{ p.status }}</td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-    </div>
-
-    <hr>
-
     <h2>📦 Quản Lý Sản Phẩm (Danh Sách Đầy Đủ)</h2>
     
     <div style="margin-bottom: 15px;">
