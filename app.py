@@ -285,14 +285,34 @@ def seller_dashboard():
         
     SHOP_ID = session['user_id']
     
-    # Khởi tạo dashboard_stats để tránh lỗi UndefinedError
+    # --- TÍCH HỢP SP: sp_GetShopDashboardStats (SP_7) ---
+    # Khởi tạo dashboard_stats mặc định
     dashboard_stats = {
         'TotalRevenue': 0,
+        'RealAvgRating': 0,
         'TotalOrders': 0,
-        'AvgRating': 0,
-        'BestSellerName': 'N/A'
+        'TotalItems': 0,
+        'TotalProductsSold': 0
     }
     
+    try:
+        sql_stats = "EXEC sp_GetShopDashboardStats @ShopID = ?"
+        stats_result, _ = execute_select(sql_stats, (SHOP_ID,))
+        if stats_result:
+            dashboard_stats = stats_result[0]
+    except Exception as e:
+        print(f"Lỗi lấy thống kê Dashboard: {e}")
+
+    # --- TÍCH HỢP SP: sp_GetShopBestSeller (SP_9) ---
+    best_seller = 'Chưa có'
+    try:
+        sql_best_seller = "EXEC sp_GetShopBestSeller @ShopID = ?"
+        best_seller_result, _ = execute_select(sql_best_seller, (SHOP_ID,))
+        if best_seller_result:
+            best_seller = best_seller_result[0]['BestSellerName']
+    except Exception as e:
+        print(f"Lỗi lấy sản phẩm bán chạy: {e}")
+
     # Lấy tham số Tìm kiếm/Lọc
     keyword = request.args.get('keyword', '').lower()
     status_filter = request.args.get('status_filter')
@@ -336,7 +356,8 @@ def seller_dashboard():
                            is_customer_user=session.get('is_customer', False),
                            current_keyword=keyword,
                            current_status=status_filter,
-                           dashboard_stats=dashboard_stats) # Truyền biến an toàn
+                           dashboard_stats=dashboard_stats,
+                           best_seller=best_seller) # Truyền biến an toàn
 
 @app.route('/seller/reports', methods=['GET'])
 def seller_reports():
