@@ -311,14 +311,55 @@ def seller_dashboard():
         if best_seller_data:
             best_seller_name = best_seller_data[0].get('BestSellerName', 'Chưa có dữ liệu')
             
+        # 3. Lấy danh sách khách hàng đã mua
+        sql_customers = """
+            SELECT DISTINCT 
+                U.user_id, 
+                U.username, 
+                U.phone_number,
+                COUNT(DISTINCT ORD.order_id) as TotalOrders,
+                SUM(OD.total_price) as TotalSpent
+            FROM [USER] U
+            JOIN [ORDER] ORD ON U.user_id = ORD.customer_id
+            JOIN ORDER_DETAIL OD ON ORD.order_id = OD.order_id
+            WHERE ORD.shop_id = ?
+            GROUP BY U.user_id, U.username, U.phone_number
+            ORDER BY TotalSpent DESC
+        """
+        customer_list, _ = execute_select(sql_customers, (SHOP_ID,))
+
+        # 4. Lấy lịch sử bán hàng
+        sql_sales_history = """
+            SELECT 
+                ORD.order_id as order_group_id,
+                O.created_at,
+                U.username as CustomerName,
+                PV.prod_name,
+                OD.quantity,
+                OD.total_price as sub_total,
+                (SELECT TOP 1 status FROM ORDER_STATUS OS WHERE OS.order_id = ORD.order_id ORDER BY OS.status_timestamp DESC) as latest_status
+            FROM [ORDER] ORD
+            JOIN ORDER_GROUP O ON ORD.order_group_id = O.order_group_id
+            JOIN ORDER_DETAIL OD ON ORD.order_id = OD.order_id
+            JOIN PRODUCT_VARIANT PV ON OD.product_id = PV.prod_id
+            JOIN [USER] U ON ORD.customer_id = U.user_id
+            WHERE ORD.shop_id = ?
+            ORDER BY O.created_at DESC
+        """
+        sales_history, _ = execute_select(sql_sales_history, (SHOP_ID,))
+
     except Exception as e:
         print(f"Error fetching dashboard stats: {e}")
+        customer_list = []
+        sales_history = []
     
     return render_template('seller_dashboard.html', 
                            shop_id=SHOP_ID,
                            is_customer_user=session.get('is_customer', False),
                            dashboard_stats=dashboard_stats,
-                           best_seller=best_seller_name)
+                           best_seller=best_seller_name,
+                           customer_list=customer_list,
+                           sales_history=sales_history)
 
 @app.route('/seller/products')
 def seller_products():

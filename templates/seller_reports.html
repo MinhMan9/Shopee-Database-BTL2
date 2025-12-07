@@ -20,7 +20,7 @@
             <p><strong>Tên Shop:</strong> {{ r.ShopName }}</p>
             <p><strong>Tổng Đơn Hàng:</strong> {{ r.TotalOrders }}</p>
             <p><strong>Tổng Doanh Thu:</strong> <span style="font-weight: bold; color: green;">{{ r.TotalRevenue | format_currency }}</span></p>
-            <p><strong>Rating Trung Bình (Lấy từ bảng SHOP):</strong> {{ r.AvgShopRating }}</p>
+            <p><strong>Rating Trung Bình:</strong> {{ r.AvgShopRating }}</p>
         </div>
     {% else %}
         <p>Không có dữ liệu tổng quan cho Shop này.</p>

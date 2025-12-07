@@ -7,7 +7,7 @@
         <a href="{{ url_for('seller_dashboard') }}" class="btn btn-secondary">⬅️ Quay lại Dashboard</a>
     </div>
 
-    <h2>📦 Quản Lý Sản Phẩm (Danh Sách Đầy Đủ)</h2>
+    <h2>📦 Quản Lý Sản Phẩm</h2>
     
     <div style="margin-bottom: 15px;">
         <a href="{{ url_for('add_product') }}" class="btn btn-success">➕ Thêm Sản Phẩm Mới</a>
@@ -29,6 +29,17 @@
             <a href="{{ url_for('seller_products') }}" style="padding: 8px 15px; background: #6c757d; color: white; text-decoration: none; border-radius: 4px;">Reset</a>
         </div>
     </form>
+
+    <style>
+        .table th, .table td {
+            padding: 12px 15px; /* Tăng khoảng cách đệm trong ô */
+            text-align: left;
+        }
+        .table {
+            width: 100%; /* Đảm bảo bảng rộng 100% */
+            border-collapse: collapse;
+        }
+    </style>
 
     <table class="table table-bordered">
         <thead>

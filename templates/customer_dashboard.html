@@ -22,7 +22,7 @@
 
     {% if is_shop_user %}
         <div style="float: right; padding: 10px; border: 1px solid #ddd; border-radius: 5px; background: #fff8e1;">
-            Bạn là **SHOP**. <a href="{{ url_for('seller_dashboard') }}">Chuyển sang Quản Lý Bán Hàng 🛍️</a>
+            Bạn là <strong>SHOP</strong>. <a href="{{ url_for('seller_dashboard') }}">Chuyển sang Quản Lý Bán Hàng 🛍️</a>
              <a href="{{ url_for('seller_reports') }}" style="margin-left: 10px;">(Xem Báo Cáo 📊)</a>
         </div>
     {% endif %}
@@ -34,7 +34,7 @@
         <li class="tab-item" data-tab="order-history">Lịch sử đơn hàng</li>
         <li class="tab-item" data-tab="shopping-cart">Giỏ hàng</li>
         <li class="tab-item" data-tab="vouchers">Voucher Hiện Tại</li>
-        <li class="tab-item" data-tab="products">Sản phẩm (Khám phá)</li>
+        <li class="tab-item" data-tab="products">Sản phẩm</li>
     </ul>
 
     <div class="tab-content">
@@ -48,10 +48,10 @@
             </div>
 
             <div style="margin-top: 15px; padding: 15px; border: 1px solid #4a90e2; border-radius: 5px; background-color: #eaf3ff;">
-                <h4>🏆 Kiểm tra Thăng hạng (Function)</h4>
+                <h4>🏆 Kiểm tra Thăng hạng</h4>
                 {% if tier_info %}
                 {% if tier_info.SpendingNeeded > 0 %}
-                    <p>Cần chi tiêu thêm **{{ tier_info.SpendingNeeded | format_currency }}** để đạt cấp **{{ tier_info.NextTierName }}**.</p>
+                    <p>Cần chi tiêu thêm <strong>{{ tier_info.SpendingNeeded | format_currency }}</strong> để đạt cấp <strong>{{ tier_info.NextTierName }}</strong>.</p>
                 {% else %}
                     <p>Chúc mừng! Bạn đang ở cấp cao nhất ({{ tier_info.CurrentTierName }}) hoặc đã đạt yêu cầu thăng hạng.</p>
                 {% endif %}
@@ -68,7 +68,7 @@
         </div>
 
         <div id="order-history" class="tab-pane">
-            <h3>Danh sách Đơn hàng đã đặt (5 đơn gần nhất)</h3>
+            <h3>Danh sách Đơn hàng đã đặt</h3>
             {% if order_history %}
             <table class="data-table" style="width: 100%;">
                 <thead>
@@ -180,13 +180,13 @@
                 
                 <input type="hidden" name="tab" value="products">
 
-                <label for="ten_dm">Tên Danh mục (LIKE):</label>
+                <label for="ten_dm">Tên Danh mục:</label>
                 <input type="text" id="ten_dm" name="ten_dm" value="{{ request.args.get('ten_dm') or '' }}" style="margin-right: 15px;">
                 
-                <label for="min_sales">Doanh số Min (Đã bán):</label>
+                <label for="min_sales">Doanh số:</label>
                 <input type="number" id="min_sales" name="min_sales" value="{{ request.args.get('min_sales') or '' }}" style="margin-right: 15px;">
                 
-                <label for="min_rating">Rating Min (Ví dụ: 4.5):</label>
+                <label for="min_rating">Rating Min:</label>
                 <input type="number" id="min_rating" name="min_rating" step="0.1" value="{{ request.args.get('min_rating') or '' }}" style="margin-right: 15px;">
                 
                 <button type="submit" style="background-color: #ee4d2d;">Tìm kiếm/Lọc</button>
