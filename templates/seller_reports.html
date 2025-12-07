@@ -3,6 +3,17 @@
 {% block title %}Báo Cáo Thống Kê Shop{% endblock %}
 
 {% block content %}
+    <style>
+        .data-table th, .data-table td {
+            text-align: center;
+            vertical-align: middle;
+            padding: 10px;
+            border: 1px solid #ddd;
+        }
+        .data-table th {
+            background-color: #f2f2f2;
+        }
+    </style>
     <h2>📊 Báo Cáo & Thống Kê (Shop ID: {{ shop_id }})</h2>
     
     {% if is_customer_user %}
