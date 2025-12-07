@@ -22,8 +22,7 @@
 
     {% if is_shop_user %}
         <div style="float: right; padding: 10px; border: 1px solid #ddd; border-radius: 5px; background: #fff8e1;">
-            Bạn là <strong>SHOP</strong>. <a href="{{ url_for('seller_dashboard') }}">Chuyển sang Quản Lý Bán Hàng 🛍️</a>
-             <a href="{{ url_for('seller_reports') }}" style="margin-left: 10px;">(Xem Báo Cáo 📊)</a>
+            Bạn là <strong>CUSTOMER</strong>. <a href="{{ url_for('seller_dashboard') }}">Chuyển sang Quản Lý Bán Hàng 🛍️</a>
         </div>
     {% endif %}
 

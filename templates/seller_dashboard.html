@@ -17,12 +17,13 @@
 
     {% if is_customer_user %}
         <div style="float: right; padding: 10px; border: 1px solid #ddd; border-radius: 5px; background: #e3f2fd;">
-            Bạn là <strong>CUSTOMER</strong>. <a href="{{ url_for('customer_dashboard') }}">Chuyển sang Trang Mua Hàng 🛍️</a>
+            Bạn là <strong>SHOP</strong>. <a href="{{ url_for('customer_dashboard') }}">Chuyển sang Trang Mua Hàng 🛍️</a>
         </div>
     {% endif %}
 
     <div style="margin-bottom: 20px; clear: both; padding-top: 10px;">
         <a href="{{ url_for('seller_products') }}" class="btn btn-primary" style="font-size: 18px;">📦 Quản Lý Danh Sách Sản Phẩm</a>
+        <a href="{{ url_for('seller_reports') }}" class="btn" style="font-size: 18px; margin-left: 10px; background-color: #28a745; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;">📊 Xem Báo Cáo</a>
     </div>
 
     <ul class="tab-menu">
