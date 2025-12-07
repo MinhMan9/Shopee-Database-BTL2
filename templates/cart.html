@@ -1,0 +1,83 @@
+{% extends "base.html" %}
+
+{% block title %}Giỏ Hàng Của Bạn{% endblock %}
+
+{% block content %}
+    <style>
+        .cart-summary { 
+            border: 2px solid #ee4d2d; 
+            padding: 20px; 
+            margin-top: 20px; 
+            border-radius: 5px; 
+            background: #fff8f5;
+        }
+        .cart-summary h3 { color: #ee4d2d; margin-top: 0; }
+        .cart-item-row td { vertical-align: middle; }
+        .quantity-input { width: 60px; text-align: center; margin: 0 5px; }
+        .btn-update { background-color: #007bff; color: white; border: none; padding: 5px 10px; border-radius: 3px; cursor: pointer; }
+        .btn-delete { background-color: #c9302c; color: white; border: none; padding: 5px 10px; border-radius: 3px; cursor: pointer; }
+    </style>
+
+    <h2>🛍️ Giỏ Hàng Của Bạn (Cart ID: {{ cart_id }})</h2>
+
+    {% if cart_items %}
+        <table class="data-table" style="width: 100%;">
+            <thead>
+                <tr>
+                    <th>Sản phẩm</th>
+                    <th>Cửa hàng</th>
+                    <th>Giá Đơn vị</th>
+                    <th>Số lượng</th>
+                    <th>Tạm tính</th>
+                    <th>Hành động</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in cart_items %}
+                <tr class="cart-item-row">
+                    <td>
+                        <a href="{{ url_for('product_detail', prod_id=item.prod_id) }}" style="font-weight: bold;">{{ item.prod_name }}</a>
+                        <br><small style="color: #888;">(Tồn kho: {{ item.stock_quantity }})</small>
+                    </td>
+                    <td>{{ item.ShopName }}</td>
+                    <td>{{ item.price | format_currency }}</td>
+                    
+                    <td>
+                        <form method="POST" action="{{ url_for('update_cart_item') }}" style="display: flex; align-items: center;">
+                            <input type="hidden" name="cart_item_id" value="{{ item.cart_item_id }}">
+                            <input type="number" name="quantity" class="quantity-input" 
+                                   value="{{ item.quantity }}" min="1" max="{{ item.stock_quantity }}" required>
+                            <button type="submit" class="btn-update">Cập nhật</button>
+                        </form>
+                    </td>
+                    
+                    <td>{{ item.sub_total | format_currency }}</td>
+                    
+                    <td>
+                        <form method="POST" action="{{ url_for('delete_cart_item', cart_item_id=item.cart_item_id) }}" onsubmit="return confirm('Xác nhận xóa {{ item.prod_name }} khỏi giỏ hàng?');">
+                            <button type="submit" class="btn-delete">Xóa</button>
+                        </form>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+
+        <div class="cart-summary">
+            <h3>Tổng Kết Đơn Hàng</h3>
+            <p><strong>Tổng sản phẩm:</strong> {{ cart_summary.total_product }}</p>
+            <p style="font-size: 1.5em;"><strong>TỔNG THANH TOÁN:</strong> {{ cart_summary.total_payment | format_currency }}</p>
+            <button style="background-color: #28a745; color: white; padding: 10px 25px; border: none; border-radius: 5px; margin-top: 10px;">Tiến hành Thanh toán</button>
+        </div>
+
+    {% else %}
+        <div class="cart-summary">
+            <h3>Giỏ Hàng Trống</h3>
+            <p>Bạn chưa có sản phẩm nào trong giỏ hàng. Hãy quay lại trang Khám phá để mua sắm!</p>
+            <a href="{{ url_for('customer_dashboard') }}?tab=products">
+                <button type="button" style="background-color: #007bff; color: white; padding: 10px 25px; border: none; border-radius: 5px;">Khám phá Sản phẩm</button>
+            </a>
+        </div>
+    {% endif %}
+
+{% endblock %}

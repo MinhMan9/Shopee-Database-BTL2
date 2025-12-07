@@ -1,0 +1,705 @@
+from flask import Flask, render_template, request, redirect, url_for, flash, session
+import pyodbc
+from decimal import Decimal
+from datetime import datetime
+import re # Cần cho việc trích xuất lỗi Trigger
+
+app = Flask(__name__)
+# KHÓA BÍ MẬT LÀ BẮT BUỘC để Session hoạt động ổn định
+app.secret_key = 'KEY_BI_MAT_CUA_BAN_ABCXYZ' 
+
+# --- CẤU HÌNH KẾT NỐI CSDL CỦA BẠN ---
+DRIVER = '{ODBC Driver 17 for SQL Server}'
+SERVER = 'TOMPHAN'
+DATABASE = 'SHOPEE_CLONE' 
+
+CONNECTION_STRING = (
+    f"DRIVER={DRIVER};"
+    f"SERVER={SERVER};"
+    f"DATABASE={DATABASE};"
+    f"Trusted_Connection=yes;"
+    f"TrustServerCertificate=yes;"
+)
+
+# --- CÁC HÀM XỬ LÝ CSDL CHUNG ---
+
+def execute_select(sql, params=None):
+    conn = None
+    try:
+        conn = pyodbc.connect(CONNECTION_STRING)
+        cursor = conn.cursor()
+        cursor.execute(sql, params if params else ())
+        columns = [column[0] for column in cursor.description]
+        data = [dict(zip(columns, row)) for row in cursor.fetchall()]
+        return data, columns
+    except Exception as e:
+        print(f"LỖI SELECT CSDL: {e}")
+        flash(f"LỖI KẾT NỐI/TRUY VẤN: {e}", 'error')
+        return [], []
+    finally:
+        if conn:
+            conn.close()
+
+# *** HÀM XỬ LÝ LỖI TRIGGER (RAISERROR) ***
+def execute_non_query(sql, params=None):
+    conn = None
+    try:
+        conn = pyodbc.connect(CONNECTION_STRING)
+        cursor = conn.cursor()
+        cursor.execute(sql, params if params else ())
+        conn.commit()
+        return True
+    except pyodbc.Error as e:
+        error_str = str(e.args[1])
+        
+        # Trích xuất thông báo lỗi nghiệp vụ (RAISERROR)
+        match = re.search(r'\]\s(.*?)\s\(', error_str)
+        if match:
+            user_friendly_msg = match.group(1).strip()
+        else:
+            user_friendly_msg = "Lỗi CSDL không xác định. Vui lòng kiểm tra dữ liệu."
+            
+        flash(f'LỖI THAO TÁC: {user_friendly_msg}', 'error')
+        print(f"LỖI NON-QUERY CSDL: {error_str}")
+        return False
+    finally:
+        if conn:
+            conn.close()
+
+# --- HÀM HỖ TRỢ GIỎ HÀNG ---
+def get_or_create_cart_id(user_id):
+    """Lấy Cart ID hiện có của user hoặc tạo mới nếu chưa có."""
+    sql_check = "SELECT cart_id FROM CART WHERE user_id = ?"
+    cart_data, _ = execute_select(sql_check, (user_id,))
+    
+    if cart_data:
+        return cart_data[0]['cart_id']
+    else:
+        sql_create = "INSERT INTO CART (user_id, total_product, total_payment) VALUES (?, 0, 0); SELECT SCOPE_IDENTITY() AS cart_id;"
+        conn = None
+        try:
+            conn = pyodbc.connect(CONNECTION_STRING)
+            cursor = conn.cursor()
+            cursor.execute(sql_create, (user_id,))
+            cart_id = cursor.fetchone()[0] 
+            conn.commit()
+            return int(cart_id)
+        except Exception as e:
+            print(f"LỖI TẠO GIỎ HÀNG MỚI: {e}")
+            flash('Không thể tạo giỏ hàng mới.', 'error')
+            return None
+        finally:
+            if conn: conn.close()
+
+# --- BỘ LỌC JINJA2 ---
+def format_currency(value):
+    try:
+        return "{:,.0f} VNĐ".format(value).replace(",", "#").replace(".", ",").replace("#", ".")
+    except:
+        return str(value)
+
+app.jinja_env.filters['format_currency'] = format_currency
+
+
+# --- ROUTES XÁC THỰC VÀ PHÂN QUYỀN ---
+
+@app.route('/')
+def index():
+    if 'user_id' not in session: return redirect(url_for('login'))
+    if session.get('is_shop'): return redirect(url_for('seller_dashboard'))
+    elif session.get('is_customer'): return redirect(url_for('customer_dashboard'))
+    return redirect(url_for('logout'))
+
+@app.route('/login', methods=['GET', 'POST'])
+def login():
+    if 'user_id' in session: return redirect(url_for('index'))
+        
+    if request.method == 'POST':
+        email = request.form.get('email')
+        password = request.form.get('password') 
+
+        sql_user = "SELECT user_id, username FROM [USER] WHERE email = ? AND password = ?"
+        user_data, _ = execute_select(sql_user, (email, password))
+        
+        if user_data:
+            user_id = user_data[0]['user_id']
+            session['user_id'] = user_id
+            session['username'] = user_data[0]['username']
+            
+            sql_shop = "SELECT shop_id FROM SHOP WHERE shop_id = ?"
+            sql_customer = "SELECT customer_id FROM CUSTOMER WHERE customer_id = ?"
+            session['is_shop'] = len(execute_select(sql_shop, (user_id,))[0]) > 0 
+            session['is_customer'] = len(execute_select(sql_customer, (user_id,))[0]) > 0 
+            
+            if session['is_shop']:
+                flash(f'Đăng nhập thành công! Vai trò kép (SHOP & CUSTOMER).', 'success')
+                return redirect(url_for('seller_dashboard'))
+            elif session['is_customer']:
+                flash(f'Đăng nhập thành công! Vai trò CUSTOMER.', 'success')
+                return redirect(url_for('customer_dashboard'))
+            else:
+                flash('Tài khoản không có vai trò (Shop/Customer).', 'error')
+                return redirect(url_for('login'))
+        else:
+            flash('Email hoặc mật khẩu không đúng. Vui lòng thử lại.', 'error')
+            return redirect(url_for('login')) 
+    return render_template('login.html')
+
+@app.route('/logout')
+def logout():
+    session.clear()
+    flash('Bạn đã đăng xuất.', 'success')
+    return redirect(url_for('login'))
+
+
+# --- 1. ROUTES CHO KHÁCH HÀNG (TÍCH HỢP FUNCTIONS & SP) ---
+
+@app.route('/customer/dashboard', methods=['GET'])
+def customer_dashboard():
+    if 'user_id' not in session or not session.get('is_customer'):
+        flash('Bạn cần đăng nhập với tài khoản Customer.', 'error')
+        return redirect(url_for('login'))
+
+    user_id = session['user_id']
+    search_results = []
+    
+    # --- TÍCH HỢP 3 FUNCTIONS ---
+    sql_func_cart_total = "SELECT dbo.fn_TinhTongTienGioHang(?)"
+    cart_total_result, _ = execute_select(sql_func_cart_total, (user_id,))
+    cart_total = cart_total_result[0][list(cart_total_result[0].keys())[0]] if cart_total_result else 0
+    
+    sql_func_tier_check = "SELECT * FROM dbo.fn_KiemTraThangHangThanhVien(?)"
+    tier_check_result, _ = execute_select(sql_func_tier_check, (user_id,))
+    tier_info = tier_check_result[0] if tier_check_result else {}
+    
+    sql_func_stock = "SELECT dbo.fn_KiemTraTrangThaiTonKho(?, ?)"
+    stock_check_result, _ = execute_select(sql_func_stock, (1, 5)) 
+    stock_status_sp1 = stock_check_result[0][list(stock_check_result[0].keys())[0]] if stock_check_result else 'Lỗi kiểm tra'
+    
+    # --- TRUY VẤN DỮ LIỆU CƠ BẢN ---
+    sql_info = """
+    SELECT U.username, U.email, U.phone_number, U.gender, U.day_of_birth, C.total_spending, T.tier_name
+    FROM [USER] U LEFT JOIN CUSTOMER C ON U.user_id = C.customer_id
+    LEFT JOIN MEMBERSHIP_TIER T ON C.tier_id = T.tier_id WHERE U.user_id = ?
+    """
+    user_info, _ = execute_select(sql_info, (user_id,))
+    
+    sql_orders = """
+    SELECT TOP 5 OG.order_group_id, OG.total_payment, OG.created_at, OG.ship_address,
+    (SELECT TOP 1 OS.[status] FROM ORDER_STATUS OS JOIN [ORDER] O ON OS.order_id = O.order_id WHERE O.order_group_id = OG.order_group_id ORDER BY status_timestamp DESC) AS latest_status
+    FROM ORDER_GROUP OG WHERE OG.customer_id = ? ORDER BY OG.created_at DESC
+    """
+    order_history, _ = execute_select(sql_orders, (user_id,))
+    
+    sql_cart = """
+    SELECT PV.prod_name, CI.quantity, CI.sub_total, U_Shop.username AS ShopName
+    FROM CART C JOIN CART_ITEM CI ON C.cart_id = CI.cart_id JOIN PRODUCT_VARIANT PV ON CI.prod_id = PV.prod_id
+    JOIN [USER] U_Shop ON CI.shop_id = U_Shop.user_id WHERE C.user_id = ?
+    """
+    cart_items, _ = execute_select(sql_cart, (user_id,))
+
+    # --- TRUY VẤN VOUCHER VÀ ÁP DỤNG FUNCTION KIỂM TRA ---
+    sql_vouchers = """
+    SELECT 
+        V.voucher_id, V.description, V.discount_type, V.condition, V.valid_to, V.quantity_available
+    FROM CUSTOMER_VOUCHER CV JOIN VOUCHER V ON CV.voucher_id = V.voucher_id
+    WHERE CV.customer_id = ? ORDER BY V.valid_to DESC
+    """
+    current_vouchers, _ = execute_select(sql_vouchers, (user_id,))
+    
+    vouchers_with_status = []
+    for voucher in current_vouchers:
+        sql_check = "SELECT dbo.fn_KiemTraVoucherHopLe(?, ?, ?)"
+        check_result, _ = execute_select(sql_check, (voucher['voucher_id'], cart_total, user_id))
+        
+        if check_result:
+            status = check_result[0][list(check_result[0].keys())[0]]
+        else:
+            status = 'Lỗi kết nối kiểm tra';
+        
+        voucher['is_valid_for_cart'] = (status == 'Hợp lệ')
+        voucher['validation_reason'] = status
+        vouchers_with_status.append(voucher)
+
+    # --- TÍCH HỢP SP: sp_ThongKeSanPhamChiTiet (CHO TAB SẢN PHẨM) VÀ SẮP XẾP ---
+    ten_dm = request.args.get('ten_dm')
+    min_rating = request.args.get('min_rating')
+    min_sales = request.args.get('min_sales')
+    sort_by = request.args.get('sort_by')
+    order = request.args.get('order', 'desc') 
+
+    p_min_rating = None
+    try:
+        if min_rating: p_min_rating = float(min_rating)
+    except (ValueError, TypeError): pass
+
+    p_min_sales = None
+    try:
+        if min_sales: p_min_sales = int(min_sales)
+    except (ValueError, TypeError): pass
+        
+    params = (None, ten_dm, p_min_sales, p_min_rating)
+    sql_sp_search = "EXEC sp_ThongKeSanPhamChiTiet @ShopID = ?, @CategoryName = ?, @MinTotalSales = ?, @MinAvgRating = ?"
+    search_results, _ = execute_select(sql_sp_search, params)
+
+    # Áp dụng SẮP XẾP trong Python
+    if search_results and sort_by:
+        reverse_order = (order == 'desc')
+        
+        if sort_by == 'AvgRating':
+            sort_key = lambda x: float(x.get('AvgRating') or 0.0) 
+        elif sort_by == 'TotalUnitsSold':
+            sort_key = lambda x: int(x.get('TotalUnitsSold') or 0)
+        elif sort_by == 'CurrentPrice':
+            sort_key = lambda x: float(x.get('CurrentPrice') or 0.0)
+        else:
+            sort_key = lambda x: x.get('TotalRevenueGenerated')
+            
+        try:
+            search_results.sort(key=sort_key, reverse=reverse_order)
+        except Exception as e:
+            print(f"Lỗi sắp xếp: {e}")
+            flash(f"Lỗi sắp xếp dữ liệu: {e}", 'error')
+
+    return render_template('customer_dashboard.html', 
+                           user_data=user_info[0] if user_info else {},
+                           order_history=order_history,
+                           cart_items=cart_items,
+                           is_shop_user=session.get('is_shop', False),
+                           cart_total=cart_total,
+                           tier_info=tier_info,
+                           stock_status_sp1=stock_status_sp1,
+                           vouchers_with_status=vouchers_with_status,
+                           search_results=search_results,
+                           current_sort_by=sort_by,
+                           current_order=order)
+
+
+# --- 2. ROUTES CHO NGƯỜI BÁN (TÍCH HỢP STORED PROCEDURES) ---
+
+@app.route('/seller/dashboard')
+def seller_dashboard():
+    if 'user_id' not in session or not session.get('is_shop'):
+        flash('Bạn cần đăng nhập với tài khoản Shop.', 'error')
+        return redirect(url_for('login'))
+        
+    SHOP_ID = session['user_id']
+    
+    # Khởi tạo dashboard_stats
+    dashboard_stats = {
+        'TotalRevenue': 0,
+        'TotalOrders': 0,
+        'RealAvgRating': 0,
+        'TotalProductsSold': 0,
+        'TotalItems': 0
+    }
+    best_seller_name = "Chưa có dữ liệu"
+
+    try:
+        # 1. Lấy thống kê tổng quan (SP_7)
+        stats_data, _ = execute_select("EXEC sp_GetShopDashboardStats @ShopID = ?", (SHOP_ID,))
+        if stats_data:
+            row = stats_data[0]
+            dashboard_stats['TotalRevenue'] = row.get('TotalRevenue', 0) or 0
+            dashboard_stats['TotalOrders'] = row.get('TotalOrders', 0) or 0
+            dashboard_stats['RealAvgRating'] = row.get('RealAvgRating', 0) or 0
+            dashboard_stats['TotalProductsSold'] = row.get('TotalProductsSold', 0) or 0
+            dashboard_stats['TotalItems'] = row.get('TotalItems', 0) or 0
+
+        # 2. Lấy sản phẩm bán chạy nhất (SP_8)
+        best_seller_data, _ = execute_select("EXEC sp_GetShopBestSeller @ShopID = ?", (SHOP_ID,))
+        if best_seller_data:
+            best_seller_name = best_seller_data[0].get('BestSellerName', 'Chưa có dữ liệu')
+            
+        # 3. Lấy danh sách khách hàng đã mua
+        sql_customers = """
+            SELECT DISTINCT 
+                U.user_id, 
+                U.username, 
+                U.phone_number,
+                COUNT(DISTINCT ORD.order_id) as TotalOrders,
+                SUM(OD.total_price) as TotalSpent
+            FROM [USER] U
+            JOIN [ORDER] ORD ON U.user_id = ORD.customer_id
+            JOIN ORDER_DETAIL OD ON ORD.order_id = OD.order_id
+            WHERE ORD.shop_id = ?
+            GROUP BY U.user_id, U.username, U.phone_number
+            ORDER BY TotalSpent DESC
+        """
+        customer_list, _ = execute_select(sql_customers, (SHOP_ID,))
+
+        # 4. Lấy lịch sử bán hàng
+        sql_sales_history = """
+            SELECT 
+                ORD.order_id as order_group_id,
+                O.created_at,
+                U.username as CustomerName,
+                PV.prod_name,
+                OD.quantity,
+                OD.total_price as sub_total,
+                (SELECT TOP 1 status FROM ORDER_STATUS OS WHERE OS.order_id = ORD.order_id ORDER BY OS.status_timestamp DESC) as latest_status
+            FROM [ORDER] ORD
+            JOIN ORDER_GROUP O ON ORD.order_group_id = O.order_group_id
+            JOIN ORDER_DETAIL OD ON ORD.order_id = OD.order_id
+            JOIN PRODUCT_VARIANT PV ON OD.product_id = PV.prod_id
+            JOIN [USER] U ON ORD.customer_id = U.user_id
+            WHERE ORD.shop_id = ?
+            ORDER BY O.created_at DESC
+        """
+        sales_history, _ = execute_select(sql_sales_history, (SHOP_ID,))
+
+    except Exception as e:
+        print(f"Error fetching dashboard stats: {e}")
+        customer_list = []
+        sales_history = []
+    
+    return render_template('seller_dashboard.html', 
+                           shop_id=SHOP_ID,
+                           is_customer_user=session.get('is_customer', False),
+                           dashboard_stats=dashboard_stats,
+                           best_seller=best_seller_name,
+                           customer_list=customer_list,
+                           sales_history=sales_history)
+
+@app.route('/seller/products')
+def seller_products():
+    if 'user_id' not in session or not session.get('is_shop'):
+        flash('Bạn cần đăng nhập với tài khoản Shop.', 'error')
+        return redirect(url_for('login'))
+        
+    SHOP_ID = session['user_id']
+
+    # Lấy tham số Tìm kiếm/Lọc
+    keyword = request.args.get('keyword', '').lower()
+    status_filter = request.args.get('status_filter')
+    
+    # Tích hợp SP: sp_HienThiSanPhamTheoTenVaGia
+    sql_sp_list = "EXEC sp_HienThiSanPhamTheoTenVaGia @TenSanPham = NULL, @GiaMin = NULL, @GiaMax = NULL"
+    all_products_sp, columns = execute_select(sql_sp_list)
+    
+    item_names_of_shop = [item['item_name'] for item in execute_select("SELECT item_name FROM ITEM WHERE shop_id = ?", (SHOP_ID,))[0]]
+    
+    # Áp dụng Lọc trong Python (Filter Logic)
+    products = []
+    for p in all_products_sp:
+        if p.get('item_name') in item_names_of_shop:
+            
+            # Lọc theo Tên Sản phẩm / Item Name (Keyword)
+            name_match = True
+            if keyword:
+                prod_name = str(p.get('prod_name', '')).lower()
+                item_name = str(p.get('item_name', '')).lower()
+                if keyword not in prod_name and keyword not in item_name:
+                    name_match = False
+            
+            # Lọc theo Trạng thái (Dropdown)
+            status_match = True
+            if status_filter:
+                current_status = str(p.get('status', ''))
+                if status_filter == 'Còn hàng':
+                    if p.get('stock_quantity', 0) <= 0:
+                        status_match = False
+                elif status_filter != 'Còn hàng' and status_filter != current_status:
+                    status_match = False
+
+            if name_match and status_match:
+                products.append(p)
+
+    return render_template('seller_products.html', 
+                           products=products, 
+                           columns=columns, 
+                           shop_id=SHOP_ID,
+                           is_customer_user=session.get('is_customer', False),
+                           current_keyword=keyword,
+                           current_status=status_filter)
+
+@app.route('/seller/reports', methods=['GET'])
+def seller_reports():
+    if 'user_id' not in session or not session.get('is_shop'):
+        flash('Bạn cần đăng nhập với tài khoản Shop để truy cập báo cáo.', 'error')
+        return redirect(url_for('login'))
+        
+    SHOP_ID = session['user_id']
+    
+    sql_sp_revenue = "EXEC sp_ThongKeDoanhSoVaRatingShop @NgayBatDau = NULL, @NgayKetThuc = NULL, @RatingShopMin = NULL"
+    all_revenue, revenue_cols = execute_select(sql_sp_revenue)
+    revenue_data = [r for r in all_revenue if r['shop_id'] == SHOP_ID]
+    
+    sql_sp_stats = "EXEC sp_ThongKeSanPhamChiTiet @ShopID = ?, @CategoryName = NULL, @MinTotalSales = 1, @MinAvgRating = NULL"
+    product_stats, stats_cols = execute_select(sql_sp_stats, (SHOP_ID,))
+    
+    return render_template('seller_reports.html',
+                           revenue_data=revenue_data,
+                           product_stats=product_stats,
+                           shop_id=SHOP_ID,
+                           is_customer_user=session.get('is_customer', False))
+
+# --- Route Chi tiết Sản phẩm ---
+@app.route('/product/<int:prod_id>')
+def product_detail(prod_id):
+    if 'user_id' not in session: 
+        flash('Vui lòng đăng nhập để xem chi tiết sản phẩm.', 'error')
+        return redirect(url_for('login'))
+
+    # 1. Truy vấn thông tin chi tiết cơ bản
+    sql_detail = """
+    SELECT PV.*, PV.rating_avg, PV.total_sales, I.item_name, C.category_name, U_Shop.username AS ShopName, U_Shop.phone_number AS ShopPhone, S.shop_id
+    FROM PRODUCT_VARIANT PV INNER JOIN ITEM I ON PV.item_id = I.item_id
+    INNER JOIN CATEGORY C ON I.category_id = C.category_id
+    INNER JOIN SHOP S ON I.shop_id = S.shop_id
+    INNER JOIN [USER] U_Shop ON S.shop_id = U_Shop.user_id
+    WHERE PV.prod_id = ?
+    """
+    detail_data, _ = execute_select(sql_detail, (prod_id,))
+    
+    if not detail_data:
+        flash(f'Sản phẩm ID {prod_id} không tồn tại.', 'error')
+        return redirect(url_for('customer_dashboard')) 
+
+    product = detail_data[0]
+    
+    # 2. TRUY VẤN THÔNG TIN BỔ SUNG:
+    sql_spec = "SELECT size, color FROM PRODUCT_SPECIFICATION WHERE prod_id = ?"
+    specs_data, _ = execute_select(sql_spec, (prod_id,))
+    
+    sql_attr = "SELECT attribute_size, is_primary FROM PRODUCT_ATTRIBUTE WHERE prod_id = ?"
+    attrs_data, _ = execute_select(sql_attr, (prod_id,))
+
+    sql_review_stats = """
+    SELECT 
+        COUNT(review_id) AS total_reviews, 
+        AVG(rating * 1.0) AS calculated_rating_avg 
+    FROM REVIEW 
+    WHERE product_id = ?
+    """
+    review_stats, _ = execute_select(sql_review_stats, (prod_id,))
+    
+    total_reviews = review_stats[0]['total_reviews'] if review_stats and review_stats[0]['total_reviews'] is not None else 0
+    calculated_rating_avg = review_stats[0]['calculated_rating_avg'] if review_stats and review_stats[0]['calculated_rating_avg'] is not None else 0.0
+
+    sql_reviews = """
+    SELECT TOP 5 
+        R.rating, R.comment, R.created_at, U_Cust.username AS CustomerName
+    FROM REVIEW R INNER JOIN CUSTOMER C ON R.customer_id = C.customer_id
+    INNER JOIN [USER] U_Cust ON C.customer_id = U_Cust.user_id
+    WHERE R.product_id = ?
+    ORDER BY R.created_at DESC
+    """
+    reviews, _ = execute_select(sql_reviews, (prod_id,))
+
+    return render_template('product_detail.html',
+                           product=product,
+                           reviews=reviews,
+                           specs=specs_data,
+                           attributes=attrs_data,
+                           total_reviews=total_reviews,
+                           calculated_rating_avg=calculated_rating_avg)
+
+# --- CÁC HÀM CRUD (Sử dụng EXECUTE_NON_QUERY để bắt lỗi Trigger) ---
+
+@app.route('/seller/add_product', methods=['GET', 'POST'])
+def add_product():
+    if 'user_id' not in session or not session.get('is_shop'):
+        flash('Bạn cần đăng nhập với tài khoản Shop.', 'error')
+        return redirect(url_for('login'))
+    
+    SHOP_ID = session['user_id']
+    categories, _ = execute_select("SELECT category_id, category_name FROM CATEGORY")
+
+    if request.method == 'POST':
+        item_name = request.form.get('item_name')
+        prod_name = request.form.get('prod_name')
+        category_id = request.form.get('category_id')
+        price = request.form.get('price')
+        stock = request.form.get('stock')
+        image_url = request.form.get('image_url')
+        description = request.form.get('description')
+
+        if not all([item_name, prod_name, category_id, price, stock]):
+            flash('Vui lòng điền đầy đủ các trường bắt buộc.', 'error')
+        else:
+            sql_add = """
+            EXEC sp_AddProduct 
+                @ShopID = ?, @CategoryID = ?, @ItemName = ?, @ProdName = ?, 
+                @Price = ?, @Stock = ?, @Description = ?, @ImageURL = ?
+            """
+            params = (SHOP_ID, category_id, item_name, prod_name, price, stock, description, image_url)
+            
+            if execute_non_query(sql_add, params):
+                flash('Thêm sản phẩm thành công!', 'success')
+                return redirect(url_for('seller_products'))
+            return redirect(url_for('add_product')) 
+
+    return render_template('add_product.html', categories=categories)
+
+@app.route('/seller/edit_product/<int:prod_id>', methods=['GET', 'POST'])
+def edit_product(prod_id):
+    if 'user_id' not in session or not session.get('is_shop'):
+        flash('Bạn cần đăng nhập với tài khoản Shop.', 'error')
+        return redirect(url_for('login'))
+    
+    SHOP_ID = session['user_id']
+    categories, _ = execute_select("SELECT category_id, category_name FROM CATEGORY")
+    
+    sql_get_prod = "SELECT PV.*, I.item_name, I.category_id FROM PRODUCT_VARIANT PV JOIN ITEM I ON PV.item_id = I.item_id WHERE PV.prod_id = ? AND I.shop_id = ?"
+    prod_data, _ = execute_select(sql_get_prod, (prod_id, SHOP_ID))
+    
+    if not prod_data:
+        flash('Sản phẩm không tồn tại hoặc không thuộc quyền quản lý của bạn.', 'error')
+        return redirect(url_for('seller_products'))
+    
+    if request.method == 'POST':
+        item_name = request.form.get('item_name')
+        prod_name = request.form.get('prod_name')
+        category_id = request.form.get('category_id')
+        price = request.form.get('price')
+        stock = request.form.get('stock')
+        image_url = request.form.get('image_url')
+        description = request.form.get('description')
+
+        if not all([item_name, prod_name, category_id, price, stock]):
+            flash('Vui lòng điền đầy đủ các trường bắt buộc.', 'error')
+        else:
+            sql_update = """
+            EXEC sp_UpdateProduct 
+                @ProdID = ?, @ShopID = ?, @CategoryID = ?, @ItemName = ?, 
+                @ProdName = ?, @Price = ?, @Stock = ?, @Description = ?, @ImageURL = ?
+            """
+            params = (prod_id, SHOP_ID, category_id, item_name, prod_name, price, stock, description, image_url)
+            
+            if execute_non_query(sql_update, params):
+                flash('Cập nhật sản phẩm thành công!', 'success')
+                return redirect(url_for('seller_products'))
+    
+    return render_template('edit_product.html', product=prod_data[0], categories=categories)
+
+
+@app.route('/seller/delete_product/<int:prod_id>', methods=['POST'])
+def delete_product(prod_id):
+    if 'user_id' not in session or not session.get('is_shop'):
+        flash('Bạn cần đăng nhập với tài khoản Shop.', 'error')
+        return redirect(url_for('login'))
+        
+    SHOP_ID = session['user_id']
+    
+    sql_delete = "EXEC sp_DeleteProduct @ProdID = ?, @ShopID = ?"
+    if execute_non_query(sql_delete, (prod_id, SHOP_ID)):
+        flash('Đã xóa (ngừng kinh doanh) sản phẩm thành công.', 'success')
+    else:
+        pass 
+        
+    return redirect(url_for('seller_products'))
+
+# --- CÁC HÀM CRUD GIỎ HÀNG ---
+@app.route('/cart')
+def cart_page():
+    if 'user_id' not in session or not session.get('is_customer'):
+        flash('Vui lòng đăng nhập để xem giỏ hàng.', 'error')
+        return redirect(url_for('login'))
+
+    user_id = session['user_id']
+    cart_id = get_or_create_cart_id(user_id)
+    
+    if cart_id is None:
+        return redirect(url_for('customer_dashboard'))
+
+    sql_cart_details = """
+    SELECT 
+        CI.cart_item_id, CI.quantity, CI.sub_total,
+        PV.prod_name, PV.price, PV.stock_quantity, PV.prod_id,
+        U_Shop.username AS ShopName, U_Shop.user_id AS ShopId
+    FROM CART_ITEM CI
+    JOIN PRODUCT_VARIANT PV ON CI.prod_id = PV.prod_id
+    JOIN [USER] U_Shop ON CI.shop_id = U_Shop.user_id
+    WHERE CI.cart_id = ?
+    """
+    cart_items, _ = execute_select(sql_cart_details, (cart_id,))
+    
+    sql_cart_total = "SELECT total_product, total_payment FROM CART WHERE cart_id = ?"
+    cart_summary, _ = execute_select(sql_cart_total, (cart_id,))
+    cart_summary = cart_summary[0] if cart_summary else {'total_product': 0, 'total_payment': 0}
+
+    return render_template('cart.html',
+                           cart_items=cart_items,
+                           cart_summary=cart_summary,
+                           cart_id=cart_id)
+
+@app.route('/cart/update_quantity', methods=['POST'])
+def update_cart_item():
+    if 'user_id' not in session or not session.get('is_customer'):
+        flash('Vui lòng đăng nhập.', 'error')
+        return redirect(url_for('cart_page'))
+
+    cart_item_id = request.form.get('cart_item_id')
+    new_quantity = request.form.get('quantity')
+    
+    try:
+        cart_item_id = int(cart_item_id)
+        new_quantity = int(new_quantity)
+    except ValueError:
+        flash('Dữ liệu số lượng không hợp lệ.', 'error')
+        return redirect(url_for('cart_page'))
+
+    # Gọi SP sp_UpdateCartItem (Logic này đã được kiểm tra bởi Triggers)
+    sql = "EXEC sp_UpdateCartItem @CartItemId = ?, @NewQuantity = ?"
+    if execute_non_query(sql, (cart_item_id, new_quantity)):
+        flash('Cập nhật số lượng thành công!', 'success')
+    
+    return redirect(url_for('cart_page'))
+
+
+@app.route('/cart/delete_item/<int:cart_item_id>', methods=['POST'])
+def delete_cart_item(cart_item_id):
+    if 'user_id' not in session or not session.get('is_customer'):
+        return redirect(url_for('login'))
+
+    # Gọi SP sp_DeleteCartItem (Logic này đã được kiểm tra bởi Triggers)
+    sql = "EXEC sp_DeleteCartItem @CartItemId = ?"
+    if execute_non_query(sql, (cart_item_id,)):
+        flash('Đã xóa sản phẩm khỏi giỏ hàng.', 'success')
+    
+    return redirect(url_for('cart_page'))
+
+@app.route('/product/add_to_cart', methods=['POST'])
+def add_to_cart():
+    if 'user_id' not in session or not session.get('is_customer'):
+        flash('Vui lòng đăng nhập để thêm sản phẩm vào giỏ.', 'error')
+        return redirect(url_for('login'))
+        
+    user_id = session['user_id']
+    cart_id = get_or_create_cart_id(user_id)
+    
+    prod_id = request.form.get('prod_id')
+    shop_id_from_form = request.form.get('shop_id') # Lấy từ form
+    quantity = request.form.get('quantity', 1)
+
+    try:
+        prod_id = int(prod_id)
+        quantity = int(quantity)
+        
+        # LOGIC TÌM SHOP ID AN TOÀN
+        if not shop_id_from_form:
+            # Nếu shop_id bị thiếu, truy vấn CSDL để lấy Shop ID của sản phẩm
+            sql_get_shop_id = "SELECT I.shop_id FROM PRODUCT_VARIANT PV JOIN ITEM I ON PV.item_id = I.item_id WHERE PV.prod_id = ?"
+            shop_data, _ = execute_select(sql_get_shop_id, (prod_id,))
+            if not shop_data:
+                 raise ValueError("Không tìm thấy Shop ID cho sản phẩm này.")
+            shop_id = shop_data[0]['shop_id']
+        else:
+            shop_id = int(shop_id_from_form)
+            
+    except (ValueError, TypeError) as e:
+        flash(f'Dữ liệu sản phẩm không hợp lệ: {e}', 'error')
+        return redirect(url_for('customer_dashboard', tab='products')) 
+
+    # Gọi SP sp_AddCartItem (Logic này đã được kiểm tra bởi Triggers)
+    sql = "EXEC sp_AddCartItem @CartId = ?, @ProdId = ?, @ShopId = ?, @Quantity = ?"
+    if execute_non_query(sql, (cart_id, prod_id, shop_id, quantity)):
+        flash(f'Đã thêm {quantity} sản phẩm vào giỏ hàng.', 'success')
+    
+    # Chuyển hướng về trang sản phẩm để hiển thị thông báo
+    return redirect(url_for('customer_dashboard', tab='products'))
+
+
+if __name__ == '__main__':
+    app.run(debug=True)

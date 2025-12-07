@@ -1,0 +1,297 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard Khách Hàng{% endblock %}
+
+{% block content %}
+    <style>
+        /* CSS cho hệ thống Tab */
+        .tab-menu { list-style: none; padding: 0; margin: 0 0 20px 0; border-bottom: 2px solid #ddd; display: flex; }
+        .tab-menu li { padding: 10px 20px; cursor: pointer; border: 1px solid transparent; border-bottom: none; margin-right: 5px; font-weight: 500; color: #777; }
+        .tab-menu li.active { border-color: #ddd #ddd #fff; color: #ee4d2d; font-weight: bold; }
+        .tab-content { border: 1px solid #ddd; padding: 20px; min-height: 400px; background-color: #fff; }
+        .tab-pane { display: none; }
+        .tab-pane.active { display: block; }
+        .info-detail { margin-bottom: 10px; }
+        .data-table th, .data-table td { border: 1px solid #e0e0e0; padding: 10px; }
+        .data-table th { background-color: #f0f0f0; }
+        .voucher-valid { color: green; font-weight: bold; }
+        .voucher-invalid { color: red; }
+    </style>
+
+    <h2>👋 Chào mừng, {{ session['username'] }}!</h2>
+
+    {% if is_shop_user %}
+        <div style="float: right; padding: 10px; border: 1px solid #ddd; border-radius: 5px; background: #fff8e1;">
+            Bạn là <strong>SHOP</strong>. <a href="{{ url_for('seller_dashboard') }}">Chuyển sang Quản Lý Bán Hàng 🛍️</a>
+             <a href="{{ url_for('seller_reports') }}" style="margin-left: 10px;">(Xem Báo Cáo 📊)</a>
+        </div>
+    {% endif %}
+
+    <div style="clear: both;"></div>
+    
+    <ul class="tab-menu">
+        <li class="tab-item active" data-tab="account-info">Thông tin tài khoản</li>
+        <li class="tab-item" data-tab="order-history">Lịch sử đơn hàng</li>
+        <li class="tab-item" data-tab="shopping-cart">Giỏ hàng</li>
+        <li class="tab-item" data-tab="vouchers">Voucher Hiện Tại</li>
+        <li class="tab-item" data-tab="products">Sản phẩm</li>
+    </ul>
+
+    <div class="tab-content">
+        
+        <div id="account-info" class="tab-pane active">
+            <h3>Thông tin cá nhân và Tiềm năng Thăng hạng</h3>
+            {% if user_data %}
+            <div style="margin-top: 20px; padding: 20px; border: 1px solid #28a745; border-radius: 5px; background-color: #e6ffe6;">
+                <p class="info-detail"><strong>Cấp Hiện Tại:</strong> <span style="font-weight: bold; color: #d67a00;">{{ user_data.tier_name | default('N/A') }}</span></p>
+                <p class="info-detail"><strong>Tổng Chi Tiêu:</strong> {{ user_data.total_spending | format_currency | default('0 VNĐ') }}</p>
+            </div>
+
+            <div style="margin-top: 15px; padding: 15px; border: 1px solid #4a90e2; border-radius: 5px; background-color: #eaf3ff;">
+                <h4>🏆 Kiểm tra Thăng hạng</h4>
+                {% if tier_info %}
+                {% if tier_info.SpendingNeeded > 0 %}
+                    <p>Cần chi tiêu thêm <strong>{{ tier_info.SpendingNeeded | format_currency }}</strong> để đạt cấp <strong>{{ tier_info.NextTierName }}</strong>.</p>
+                {% else %}
+                    <p>Chúc mừng! Bạn đang ở cấp cao nhất ({{ tier_info.CurrentTierName }}) hoặc đã đạt yêu cầu thăng hạng.</p>
+                {% endif %}
+                {% else %}
+                    <p>Không thể kiểm tra thông tin thăng hạng.</p>
+                {% endif %}
+                
+                <hr>
+            </div>
+
+            {% else %}
+                <p style="color: red;">Không thể tải thông tin tài khoản.</p>
+            {% endif %}
+        </div>
+
+        <div id="order-history" class="tab-pane">
+            <h3>Danh sách Đơn hàng đã đặt</h3>
+            {% if order_history %}
+            <table class="data-table" style="width: 100%;">
+                <thead>
+                    <tr><th>Mã Đơn</th><th>Ngày Đặt</th><th>Tổng Thanh Toán</th><th>Trạng Thái Mới Nhất</th><th>Địa Chỉ Giao Hàng</th></tr>
+                </thead>
+                <tbody>
+                {% for order in order_history %}
+                    <tr>
+                        <td>{{ order.order_group_id }}</td>
+                        <td>{{ order.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
+                        <td>{{ order.total_payment | format_currency }}</td>
+                        <td><strong>{{ order.latest_status }}</strong></td>
+                        <td>{{ order.ship_address }}</td>
+                    </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+            {% else %}
+                <p>Bạn chưa có đơn hàng nào.</p>
+            {% endif %}
+        </div>
+
+        <div id="shopping-cart" class="tab-pane">
+            <h3>Các Sản phẩm hiện có trong Giỏ hàng</h3>
+            <p style="font-size: 1.1em; font-weight: bold; color: #ee4d2d;">TỔNG GIÁ TRỊ GIỎ HÀNG {{ cart_total | format_currency }}</p>
+            
+            {% if cart_items %}
+            <table class="data-table" style="width: 100%; margin-bottom: 30px;">
+                <thead><tr><th>Sản Phẩm</th><th>Số Lượng</th><th>Giá Tạm Tính</th><th>Shop</th></tr></thead>
+                <tbody>
+                {% for item in cart_items %}
+                    <tr>
+                        <td>{{ item.prod_name }}</td>
+                        <td>{{ item.quantity }}</td>
+                        <td>{{ item.sub_total | format_currency }}</td>
+                        <td>{{ item.ShopName }}</td>
+                    </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+            
+            <p style="margin-top: 20px;">
+                <a href="{{ url_for('cart_page') }}">
+                    <button style="background-color: #007bff;">Xem Chi Tiết Giỏ Hàng và Chỉnh Sửa</button>
+                </a>
+            </p>
+
+            <h4>Voucher có thể áp dụng</h4>
+            <div style="padding: 15px; border: 1px solid #c3e6cb; background-color: #f0fff0;">
+                {% set applicable_vouchers = vouchers_with_status | selectattr('is_valid_for_cart') | list %}
+                {% if applicable_vouchers %}
+                    <p style="color: green;">Tìm thấy <strong>{{ applicable_vouchers | length }}</strong> voucher có thể sử dụng:</p>
+                    <ul>
+                        {% for voucher in applicable_vouchers %}
+                            <li style="font-weight: bold;">[ID: {{ voucher.voucher_id }}] {{ voucher.description }}</li>
+                        {% endfor %}
+                    </ul>
+                {% else %}
+                    <p style="color: orange;">Không có voucher nào khả dụng cho giỏ hàng hiện tại.</p>
+                    <small>Tổng tiền giỏ hàng: {{ cart_total | format_currency }}.</small>
+                {% endif %}
+            </div>
+
+            {% else %}
+                <p>Giỏ hàng của bạn đang trống.</p>
+            {% endif %}
+        </div>
+
+        <div id="vouchers" class="tab-pane">
+            <h3>Danh sách Voucher đã lưu</h3>
+            {% if vouchers_with_status %}
+            <table class="data-table" style="width: 100%;">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Mô Tả</th>
+                        <th>Loại Giảm</th>
+                        <th>Hạn Dùng</th>
+                        <th>Tình Trạng Chung</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for voucher in vouchers_with_status %}
+                        <tr>
+                            <td>{{ voucher.voucher_id }}</td>
+                            <td>{{ voucher.description }}</td>
+                            <td>{{ voucher.discount_type }}</td>
+                            <td>{{ voucher.valid_to.strftime('%Y-%m-%d') }}</td>
+                            <td>
+                                {% if voucher.is_valid_for_cart %}
+                                    <span class="voucher-valid">✅ Khả dụng cho giỏ hàng</span>
+                                {% else %}
+                                    <span class="voucher-invalid">❌ {{ voucher.validation_reason }}</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            {% else %}
+                <p>Bạn chưa lưu bất kỳ voucher nào.</p>
+            {% endif %}
+        </div>
+
+        <div id="products" class="tab-pane">
+            <h3>🛒 Tìm kiếm & Thống kê Sản phẩm Chi tiết</h3>
+            
+            <form method="GET" action="{{ url_for('customer_dashboard') }}" style="padding: 20px; border: 1px solid #ffefe6; margin-bottom: 20px; background-color: #fff8f5;">
+                
+                <input type="hidden" name="tab" value="products">
+
+                <label for="ten_dm">Tên Danh mục:</label>
+                <input type="text" id="ten_dm" name="ten_dm" value="{{ request.args.get('ten_dm') or '' }}" style="margin-right: 15px;">
+                
+                <label for="min_sales">Doanh số:</label>
+                <input type="number" id="min_sales" name="min_sales" value="{{ request.args.get('min_sales') or '' }}" style="margin-right: 15px;">
+                
+                <label for="min_rating">Rating Min:</label>
+                <input type="number" id="min_rating" name="min_rating" step="0.1" value="{{ request.args.get('min_rating') or '' }}" style="margin-right: 15px;">
+                
+                <button type="submit" style="background-color: #ee4d2d;">Tìm kiếm/Lọc</button>
+            </form>
+
+            <h4 style="margin-top: 20px;">Kết quả: {{ search_results | length }} sản phẩm được tìm thấy</h4>
+            {% if search_results %}
+                <table class="data-table" style="width: 100%;">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Tên Sản Phẩm</th>
+                            <th>Danh Mục</th>
+                            <th>Shop</th>
+                            <th>{{ sort_header_link('CurrentPrice', 'Giá HT', current_sort_by, current_order) }}</th>
+                            <th>{{ sort_header_link('TotalUnitsSold', 'Tổng Bán', current_sort_by, current_order) }}</th>
+                            <th>Tổng Doanh Thu</th>
+                            <th>{{ sort_header_link('AvgRating', 'Rating TB', current_sort_by, current_order) }}</th>
+                            <th>Total Reviews</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in search_results %}
+                            <tr>
+                                <td>{{ item.prod_id | default('N/A') }}</td>
+                                <td>
+                                    <a href="{{ url_for('product_detail', prod_id=item.prod_id) }}" style="color: #007bff; text-decoration: none; font-weight: bold;">
+                                        {{ item.prod_name | default('N/A') }}
+                                    </a>
+                                </td>
+                                <td>{{ item.category_name | default('N/A') }}</td>
+                                <td>{{ item.ShopName | default('N/A') }}</td>
+                                <td>{{ item.CurrentPrice | format_currency | default('N/A') }}</td>
+                                <td>{{ item.TotalUnitsSold | default(0) }}</td>
+                                <td>{{ item.TotalRevenueGenerated | format_currency | default('0 VNĐ') }}</td>
+                                <td>{{ item.AvgRating | default('N/A') }}</td>
+                                <td>{{ item.TotalReviews | default(0) }}</td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            {% else %}
+                <p>Không tìm thấy sản phẩm nào.</p>
+            {% endif %}
+        </div>
+
+    </div>
+    
+    <a href="{{ url_for('logout') }}"><button style="background-color: #6c757d; margin-top: 20px;">Đăng Xuất</button></a>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const tabs = document.querySelectorAll('.tab-item');
+            const contents = document.querySelectorAll('.tab-pane');
+            const urlParams = new URLSearchParams(window.location.search);
+            const activeTabId = urlParams.get('tab') || 'account-info'; 
+
+            function activateTab(tabId) {
+                tabs.forEach(t => {
+                    if (t.getAttribute('data-tab') === tabId) {
+                        t.classList.add('active');
+                    } else {
+                        t.classList.remove('active');
+                    }
+                });
+                contents.forEach(c => {
+                    if (c.id === tabId) {
+                        c.classList.add('active');
+                    } else {
+                        c.classList.remove('active');
+                    }
+                });
+            }
+
+            activateTab(activeTabId);
+
+            tabs.forEach(tab => {
+                tab.addEventListener('click', function() {
+                    const targetId = this.getAttribute('data-tab');
+                    activateTab(targetId);
+                });
+            });
+        });
+    </script>
+{% endblock %}
+
+{% macro sort_header_link(column_name, display_name, current_sort, current_order) %}
+    {% set new_order = 'asc' if current_sort == column_name and current_order == 'desc' else 'desc' %}
+    
+    {% set query_params = {
+        'tab': 'products',
+        'ten_dm': request.args.get('ten_dm') or '',
+        'min_rating': request.args.get('min_rating') or '',
+        'min_sales': request.args.get('min_sales') or '',
+        'sort_by': column_name,
+        'order': new_order
+    } %}
+    
+    <a href="{{ url_for('customer_dashboard', **query_params) }}" 
+       style="color: black; text-decoration: none;">
+        {{ display_name }} 
+        {% if current_sort == column_name %}
+            {% if current_order == 'asc' %} ▲ {% else %} ▼ {% endif %}
+        {% else %}
+            ⇵
+        {% endif %}
+    </a>
+{% endmacro %}

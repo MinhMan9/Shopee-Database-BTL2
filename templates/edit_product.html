@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+
+{% block title %}Cập Nhật Sản Phẩm{% endblock %}
+
+{% block content %}
+<div class="container" style="max-width: 800px; margin: 0 auto;">
+    <h2 class="mb-4">✏️ Cập Nhật Sản Phẩm</h2>
+    
+    <form method="POST" action="{{ url_for('edit_product', prod_id=product.prod_id) }}" class="needs-validation">
+        <div class="row">
+            <div class="col-md-6 mb-3">
+                <label for="item_name" class="form-label">Tên Dòng Sản Phẩm (Item Name)</label>
+                <input type="text" class="form-control" id="item_name" name="item_name" value="{{ product.item_name }}" required>
+            </div>
+            <div class="col-md-6 mb-3">
+                <label for="prod_name" class="form-label">Tên Phân Loại (Variant Name)</label>
+                <input type="text" class="form-control" id="prod_name" name="prod_name" value="{{ product.prod_name }}" required>
+            </div>
+        </div>
+
+        <div class="mb-3">
+            <label for="category_id" class="form-label">Danh Mục</label>
+            <select class="form-select" id="category_id" name="category_id" required>
+                <option value="" disabled>-- Chọn danh mục --</option>
+                {% for cat in categories %}
+                <option value="{{ cat.category_id }}" {% if cat.category_id == product.category_id %}selected{% endif %}>{{ cat.category_name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div class="row">
+            <div class="col-md-6 mb-3">
+                <label for="price" class="form-label">Giá Bán (VNĐ)</label>
+                <input type="number" class="form-control" id="price" name="price" min="1000" step="1000" value="{{ product.price | int }}" required>
+            </div>
+            <div class="col-md-6 mb-3">
+                <label for="stock" class="form-label">Số Lượng Tồn Kho</label>
+                <input type="number" class="form-control" id="stock" name="stock" min="0" value="{{ product.stock_quantity }}" required>
+            </div>
+        </div>
+
+        <div class="mb-3">
+            <label for="image_url" class="form-label">Link Ảnh Sản Phẩm (URL)</label>
+            <input type="url" class="form-control" id="image_url" name="image_url" value="{{ product.illustration_images }}" placeholder="https://example.com/image.jpg">
+        </div>
+
+        <div class="mb-3">
+            <label for="description" class="form-label">Mô Tả Chi Tiết</label>
+            <textarea class="form-control" id="description" name="description" rows="5">{{ product.prod_description }}</textarea>
+        </div>
+
+        <div class="d-flex justify-content-between">
+            <a href="{{ url_for('seller_dashboard') }}" class="btn btn-secondary">Quay lại</a>
+            <button type="submit" class="btn btn-primary">Lưu Thay Đổi</button>
+        </div>
+    </form>
+</div>
+{% endblock %}

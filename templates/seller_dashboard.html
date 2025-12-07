@@ -1,0 +1,159 @@
+{% extends "base.html" %}
+
+{% block title %}Quản Lý Sản Phẩm - Kênh Bán Hàng{% endblock %}
+
+{% block content %}
+    <style>
+        /* CSS cho hệ thống Tab */
+        .tab-menu { list-style: none; padding: 0; margin: 0 0 20px 0; border-bottom: 2px solid #ddd; display: flex; }
+        .tab-menu li { padding: 10px 20px; cursor: pointer; border: 1px solid transparent; border-bottom: none; margin-right: 5px; font-weight: 500; color: #777; }
+        .tab-menu li.active { border-color: #ddd #ddd #fff; color: #ee4d2d; font-weight: bold; }
+        .tab-content { border: 1px solid #ddd; padding: 20px; min-height: 400px; background-color: #fff; }
+        .tab-pane { display: none; }
+        .tab-pane.active { display: block; }
+        .data-table th, .data-table td { border: 1px solid #e0e0e0; padding: 10px; }
+        .data-table th { background-color: #f0f0f0; }
+    </style>
+
+    {% if is_customer_user %}
+        <div style="float: right; padding: 10px; border: 1px solid #ddd; border-radius: 5px; background: #e3f2fd;">
+            Bạn là <strong>CUSTOMER</strong>. <a href="{{ url_for('customer_dashboard') }}">Chuyển sang Trang Mua Hàng 🛍️</a>
+        </div>
+    {% endif %}
+
+    <div style="margin-bottom: 20px; clear: both; padding-top: 10px;">
+        <a href="{{ url_for('seller_products') }}" class="btn btn-primary" style="font-size: 18px;">📦 Quản Lý Danh Sách Sản Phẩm</a>
+    </div>
+
+    <ul class="tab-menu">
+        <li class="tab-item active" data-tab="overview">Tổng Quan Shop</li>
+        <li class="tab-item" data-tab="customers">Danh Sách Khách Hàng</li>
+        <li class="tab-item" data-tab="sales-history">Lịch Sử Bán Hàng</li>
+    </ul>
+
+    <div class="tab-content">
+        <!-- Tab 1: Tổng Quan -->
+        <div id="overview" class="tab-pane active">
+            <h2>📊 Tổng Quan Shop</h2>
+            <div style="display: flex; gap: 20px; margin-bottom: 20px;">
+                <div style="border: 1px solid #ccc; padding: 15px; border-radius: 8px; flex: 1; background-color: #f9f9f9;">
+                    <h3>💰 Doanh Thu Tổng</h3>
+                    <p style="font-size: 24px; font-weight: bold; color: #28a745;">{{ dashboard_stats.TotalRevenue | format_currency }}</p>
+                </div>
+                <div style="border: 1px solid #ccc; padding: 15px; border-radius: 8px; flex: 1; background-color: #f9f9f9;">
+                    <h3>⭐ Đánh Giá TB</h3>
+                    <p style="font-size: 24px; font-weight: bold; color: #ffc107;">{{ dashboard_stats.RealAvgRating }} / 5.0</p>
+                </div>
+                <div style="border: 1px solid #ccc; padding: 15px; border-radius: 8px; flex: 1; background-color: #f9f9f9;">
+                    <h3>🏆 Sản Phẩm Bán Chạy</h3>
+                    <p style="font-size: 18px; font-weight: bold; color: #dc3545;">{{ best_seller }}</p>
+                </div>
+            </div>
+
+            <div style="display: flex; gap: 20px; margin-bottom: 20px;">
+                <div style="border: 1px solid #ccc; padding: 15px; border-radius: 8px; flex: 1;">
+                    <p><strong>Tổng Đơn Hàng:</strong> {{ dashboard_stats.TotalOrders }}</p>
+                    <p><strong>Tổng Sản Phẩm Đã Bán:</strong> {{ dashboard_stats.TotalProductsSold }}</p>
+                    <p><strong>Tổng Số Item Đang Bán:</strong> {{ dashboard_stats.TotalItems }}</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tab 2: Danh Sách Khách Hàng -->
+        <div id="customers" class="tab-pane">
+            <h3>👥 Danh Sách Khách Hàng Đã Mua</h3>
+            {% if customer_list %}
+            <table class="data-table" style="width: 100%;">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Tên Đăng Nhập</th>
+                        <th>SĐT</th>
+                        <th>Số Đơn Đã Mua</th>
+                        <th>Tổng Chi Tiêu</th>
+                    </tr>
+                </thead>
+                <tbody>
+                {% for cust in customer_list %}
+                    <tr>
+                        <td>{{ cust.user_id }}</td>
+                        <td>{{ cust.username }}</td>
+                        <td>{{ cust.phone_number }}</td>
+                        <td>{{ cust.TotalOrders }}</td>
+                        <td>{{ cust.TotalSpent | format_currency }}</td>
+                    </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+            {% else %}
+                <p>Chưa có khách hàng nào.</p>
+            {% endif %}
+        </div>
+
+        <!-- Tab 3: Lịch Sử Bán Hàng -->
+        <div id="sales-history" class="tab-pane">
+            <h3>📜 Lịch Sử Bán Hàng Chi Tiết</h3>
+            {% if sales_history %}
+            <table class="data-table" style="width: 100%;">
+                <thead>
+                    <tr>
+                        <th>Mã Đơn</th>
+                        <th>Ngày Đặt</th>
+                        <th>Khách Hàng</th>
+                        <th>Sản Phẩm</th>
+                        <th>SL</th>
+                        <th>Thành Tiền</th>
+                        <th>Trạng Thái</th>
+                    </tr>
+                </thead>
+                <tbody>
+                {% for sale in sales_history %}
+                    <tr>
+                        <td>{{ sale.order_group_id }}</td>
+                        <td>{{ sale.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
+                        <td>{{ sale.CustomerName }}</td>
+                        <td>{{ sale.prod_name }}</td>
+                        <td>{{ sale.quantity }}</td>
+                        <td>{{ sale.sub_total | format_currency }}</td>
+                        <td><strong>{{ sale.latest_status }}</strong></td>
+                    </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+            {% else %}
+                <p>Chưa có lịch sử bán hàng.</p>
+            {% endif %}
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const tabs = document.querySelectorAll('.tab-item');
+            const contents = document.querySelectorAll('.tab-pane');
+
+            function activateTab(tabId) {
+                tabs.forEach(t => {
+                    if (t.getAttribute('data-tab') === tabId) {
+                        t.classList.add('active');
+                    } else {
+                        t.classList.remove('active');
+                    }
+                });
+                contents.forEach(c => {
+                    if (c.id === tabId) {
+                        c.classList.add('active');
+                    } else {
+                        c.classList.remove('active');
+                    }
+                });
+            }
+
+            tabs.forEach(tab => {
+                tab.addEventListener('click', function() {
+                    const targetId = this.getAttribute('data-tab');
+                    activateTab(targetId);
+                });
+            });
+        });
+    </script>
+{% endblock %}

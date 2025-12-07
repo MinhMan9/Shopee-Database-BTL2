@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+
+{% block title %}Tìm Kiếm Sản Phẩm Chi Tiết{% endblock %}
+
+{% block content %}
+    <h2>🔎 Báo Cáo & Tìm kiếm Sản phẩm Chi tiết (Sử dụng SP: `sp_ThongKeSanPhamChiTiet`)</h2>
+
+    <form method="GET" action="{{ url_for('product_search') }}" style="padding: 20px; border: 1px solid #ccc; margin-bottom: 20px;">
+        <label for="ten_dm">Tên Danh mục:</label>
+        <input type="text" id="ten_dm" name="ten_dm" value="{{ request.args.get('ten_dm') or '' }}" style="margin-right: 15px;">
+        
+        <label for="min_sales">Doanh số Min (Đã bán):</label>
+        <input type="number" id="min_sales" name="min_sales" value="{{ request.args.get('min_sales') or '' }}" style="margin-right: 15px;">
+        
+        <label for="min_rating">Rating Min (Ví dụ: 4.5):</label>
+        <input type="number" id="min_rating" name="min_rating" step="0.1" value="{{ request.args.get('min_rating') or '' }}" style="margin-right: 15px;">
+        
+        <button type="submit" style="background-color: #007bff;">Thống kê</button>
+    </form>
+
+    <h3>Kết quả Thống kê Chi tiết:</h3>
+    {% if search_results %}
+        <table class="data-table" style="width: 100%;">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Tên Sản Phẩm</th>
+                    <th>Danh Mục</th>
+                    <th>Shop</th>
+                    <th>Giá Hiện Tại</th>
+                    <th>Tổng Bán</th>
+                    <th>Tổng Doanh Thu</th>
+                    <th>Rating TB</th>
+                    <th>Total Reviews</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in search_results %}
+                    <tr>
+                        <td>{{ item.prod_id | default('N/A') }}</td>
+                        <td>{{ item.prod_name | default('N/A') }}</td>
+                        <td>{{ item.category_name | default('N/A') }}</td>
+                        <td>{{ item.ShopName | default('N/A') }}</td>
+                        <td>{{ item.CurrentPrice | format_currency | default('N/A') }}</td>
+                        <td>{{ item.TotalUnitsSold | default(0) }}</td>
+                        <td>{{ item.TotalRevenueGenerated | format_currency | default('0 VNĐ') }}</td>
+                        <td>{{ item.AvgRating | default('N/A') }}</td>
+                        <td>{{ item.TotalReviews | default(0) }}</td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    {% else %}
+        <p>Không tìm thấy kết quả nào hoặc chưa thực hiện thống kê.</p>
+    {% endif %}
+{% endblock %}

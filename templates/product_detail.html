@@ -1,0 +1,139 @@
+{% extends "base.html" %}
+
+{% block title %}Chi Tiết Sản Phẩm: {{ product.prod_name }}{% endblock %}
+
+{% block content %}
+    <style>
+        .detail-card { 
+            border: 1px solid #ddd; 
+            padding: 25px; 
+            border-radius: 8px; 
+            background: #fff;
+            margin-bottom: 20px;
+        }
+        .price { 
+            font-size: 2em; 
+            color: #ee4d2d; 
+            font-weight: bold; 
+            margin-top: 10px; 
+        }
+        .review-item { 
+            border-bottom: 1px dashed #eee; 
+            padding-bottom: 10px; 
+            margin-bottom: 10px; 
+        }
+        .review-rating { color: gold; font-size: 1.2em; }
+        .rating-box { 
+            border: 1px solid #f0f0f0; 
+            padding: 10px; 
+            background: #fafafa; 
+            margin-bottom: 15px; 
+            border-radius: 5px;
+        }
+        .add-to-cart-form {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-top: 20px;
+        }
+        .quantity-input {
+            width: 60px;
+            text-align: center;
+            padding: 8px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+        }
+        .btn-add {
+            background-color: #ff6600;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+    </style>
+
+    <a href="{{ url_for('customer_dashboard') }}?tab=products">
+        <button style="background-color: #6c757d; margin-bottom: 20px;">
+            ← Quay lại Khám phá Sản phẩm
+        </button>
+    </a>
+
+    <h2>🛒 {{ product.prod_name }} (ID: {{ product.prod_id }})</h2>
+
+    <div class="detail-card">
+        <div style="display: flex; gap: 30px;">
+            <div style="flex: 2;">
+                <p><strong>Danh mục:</strong> {{ product.category_name }}</p>
+                <p><strong>Shop:</strong> {{ product.ShopName }} (ĐT: {{ product.ShopPhone | default('N/A') }})</p>
+                
+                <h3 class="price">{{ product.price | format_currency }}</h3>
+                
+                <div class="rating-box">
+                    <p><strong>Rating Trung Bình:</strong> 
+                        <span style="color: #ff6600; font-weight: bold; font-size: 1.1em;">
+                            {{ "%.1f" | format(calculated_rating_avg) }} ⭐
+                        </span>
+                    </p>
+                    <p><strong>Tổng Số Đánh Giá:</strong> {{ total_reviews }}</p>
+                </div>
+                
+                <p><strong>Tồn kho:</strong> {{ product.stock_quantity }}</p>
+                
+                <form method="POST" action="{{ url_for('add_to_cart') }}" class="add-to-cart-form">
+                    <input type="hidden" name="prod_id" value="{{ product.prod_id }}">
+                    <input type="hidden" name="shop_id" value="{{ product.shop_id }}"> <label for="qty" style="font-weight: bold;">Số lượng:</label>
+                    <input type="number" id="qty" name="quantity" value="1" min="1" 
+                           max="{{ product.stock_quantity }}" class="quantity-input" required>
+                    
+                    <button type="submit" class="btn-add">
+                        🛒 Thêm vào Giỏ hàng
+                    </button>
+                </form>
+            </div>
+
+            <div style="flex: 3;">
+                <h4>Mô tả Sản phẩm</h4>
+                <div style="border: 1px solid #f0f0f0; padding: 15px; background: #fafafa; border-radius: 5px; margin-bottom: 20px;">
+                    <p>{{ product.prod_description | default('Không có mô tả chi tiết.') }}</p>
+                    <p><strong>Thông số:</strong> {{ product.product_specification | default('N/A') }}</p>
+                </div>
+
+                <h4>Chi tiết Sản phẩm (Specification & Attribute)</h4>
+                {% if specs or attributes %}
+                    <ul>
+                        {% for spec in specs %}
+                            <li>Kích cỡ/Dung lượng: {{ spec.size | default('N/A') }}, Màu sắc: {{ spec.color | default('N/A') }}</li>
+                        {% endfor %}
+                        {% for attr in attributes %}
+                            <li>Attribute: {{ attr.attribute_size }} ({% if attr.is_primary %}Chính{% else %}Phụ{% endif %})</li>
+                        {% endfor %}
+                    </ul>
+                {% else %}
+                    <p>Không có thông tin chi tiết (Specification/Attribute).</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <h3>⭐ Đánh giá Khách hàng</h3>
+    <div class="detail-card">
+        {% if reviews %}
+            {% for review in reviews %}
+                <div class="review-item">
+                    <p><strong>{{ review.CustomerName }}</strong></p>
+                    <p class="review-rating">
+                        {% set stars = review.rating %}
+                        {% for i in range(stars) %}⭐{% endfor %}
+                    </p>
+                    <p>{{ review.comment }}</p>
+                    <small style="color: #777;">Ngày: {{ review.created_at.strftime('%Y-%m-%d') }}</small>
+                </div>
+            {% endfor %}
+        {% else %}
+            <p>Sản phẩm này chưa có đánh giá nào.</p>
+        {% endif %}
+    </div>
+
+{% endblock %}
